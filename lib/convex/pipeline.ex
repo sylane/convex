@@ -284,6 +284,8 @@ defmodule Convex.Pipeline do
 
   defp parse_operation_or_result(this, ast) do
     case parse_dotted(ast) do
+      [:ctx | _] ->
+        %This{this | type: :pack, pack: pack_function(this.store_keys, ast)}
       [store_key | _]->
         if store_key in this.store_keys do
           %This{this | type: :pack, pack: pack_function(this.store_keys, ast)}

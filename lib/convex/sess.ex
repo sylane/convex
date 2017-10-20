@@ -15,6 +15,8 @@ defimpl Convex.Sess, for: Any do
 
   def describe(sess) when is_binary(sess), do: sess
 
+  def describe(sess) when is_atom(sess), do: Atom.to_string(sess)
+
   def describe(_), do: "unknown"
 
 end

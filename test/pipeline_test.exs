@@ -571,6 +571,39 @@ defmodule Convex.PipelineTest do
   end
 
 
+  test "returning context" do
+    ctx = Sync.new(director: DummyDirector)
+      |> Ctx.authenticate(:foo, :spam)
+      |> Ctx.attach(:toto)
+
+    result = perform! ctx do
+      dummy.identity value: 42
+      ctx
+    end
+    assert ctx.auth == result.auth
+    assert ctx.sess == result.sess
+    assert ctx.policy == result.policy
+
+    result = perform! ctx do
+      dummy.identity value: 42
+      ctx.auth
+    end
+    assert ctx.auth == result
+
+    result = perform! ctx do
+      dummy.identity value: 42
+      ctx.sess
+    end
+    assert ctx.sess == result
+
+    result = perform! ctx do
+      dummy.identity value: 42
+      ctx.policy
+    end
+    assert ctx.policy == result
+  end
+
+
   #===========================================================================
   # Dummy Handler Functions
   #===============q============================================================
