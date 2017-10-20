@@ -10,6 +10,7 @@ defmodule Convex.Context do
 
   require Logger
 
+  alias Convex.Config
   alias Convex.Context, as: Ctx
   alias Convex.Guards
   alias Convex.Proxy
@@ -118,7 +119,7 @@ defmodule Convex.Context do
   #===========================================================================
 
   def new(mod, opts \\ []) when is_atom(mod) do
-    {dir, opts} = extract_opt(opts, :director, &Convex.director/0)
+    {dir, opts} = extract_opt(opts, :director, &Config.director/0)
     {tags, opts} = extract_opt(opts, :tags, [])
     {sub, assigns} = _mod_init(mod, %{}, opts)
     %Ctx{state: :standby, dir: dir, mod: mod, sub: sub,
@@ -145,7 +146,7 @@ defmodule Convex.Context do
   """
 
   def recast(%Ctx{} = ctx, mod, opts \\ []) when is_atom(mod) do
-    {dir, opts} = extract_opt(opts, :director, &Convex.director/0)
+    {dir, opts} = extract_opt(opts, :director, &Config.director/0)
     new_assigns = _mod_prepare_recast(ctx.mod, ctx.assigns, opts)
     _duplicate_context(ctx, dir, mod, new_assigns, opts)
   end

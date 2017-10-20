@@ -20,7 +20,10 @@ defmodule Convex.Pipeline do
     case Keyword.fetch(opts, :as) do
       :error -> gen_perform(pipe, post, ctx, nil, nil, fun_ast, ctx_opts)
       {:ok, auth_ast} ->
-        policy_ast = Keyword.get(opts, :policy, Convex.default_policy())
+        policy_ast = case Keyword.get(opts, :policy) do
+          nil -> Macro.escape(Convex.Config.default_policy())
+          policy ->  policy
+        end
         gen_perform(pipe, post, ctx, auth_ast, policy_ast, fun_ast, ctx_opts)
     end
   end
@@ -41,7 +44,10 @@ defmodule Convex.Pipeline do
     case Keyword.fetch(opts, :as) do
       :error -> gen_perform(pipe, post, ctx, nil, nil, fun_ast, ctx_opts)
       {:ok, auth_ast} ->
-        policy_ast = Keyword.get(opts, :policy, Convex.default_policy())
+        policy_ast = case Keyword.get(opts, :policy) do
+          nil -> Macro.escape(Convex.Config.default_policy())
+          policy ->  policy
+        end
         gen_perform(pipe, post, ctx, auth_ast, policy_ast, fun_ast, ctx_opts)
     end
   end
