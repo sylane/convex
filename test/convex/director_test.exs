@@ -436,6 +436,18 @@ defmodule Convex.DirectorTest do
   end
 
 
+  defmodule ProduceDirector do
+    use Convex.Director
+
+    perform "double", v: v, do: {:done, v * 2}
+    perform "foo", do: {:produce, [1, 2, 3]}
+    perform "bar", from: from, to: to do
+      values = for v <- from..to, do: v
+      {:produce, values}
+    end
+  end
+
+
   #===========================================================================
   # Includes
   #===========================================================================
@@ -913,6 +925,25 @@ defmodule Convex.DirectorTest do
 
     res = perform ctx, do: foo v: 3
     assert {:ok, {[:foo], %{v: 3, foo3: true}}} == res
+  end
+
+
+  test "producing" do
+    ctx = Sync.new(director: ProduceDirector)
+
+    res = perform ctx do
+      v = foo
+      double v: v
+    end
+    assert {:ok, items} = res
+    assert [2, 4, 6] == Enum.sort(items)
+
+    res = perform ctx do
+      v = bar from: 5, to: 8
+      double v: v
+    end
+    assert {:ok, items} = res
+    assert [10, 12, 14, 16] == Enum.sort(items)
   end
 
 end

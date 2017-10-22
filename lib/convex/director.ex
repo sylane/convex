@@ -227,6 +227,12 @@ defmodule Convex.Director do
     {var, operation_to_ast(caller, op)}
   end
 
+  defp parse_operation(caller, ast, _default_var_name) do
+    raise CompileError,
+      description: "invalid operation #{Macro.to_string(ast)}",
+      file: caller.file, line: caller.line
+  end
+
 
   defp parse_args(caller, items) when is_list(items) do
     {:%{}, [line: caller.line], items}
@@ -302,6 +308,10 @@ defmodule Convex.Director do
     quote do: Convex.Context.failed(unquote(ctx_var), unquote(ast))
   end
 
+  defp generate_perform_body(ctx_var, {:produce, ast}) do
+    quote do: Convex.Context.produce(unquote(ctx_var), unquote(ast))
+  end
+
   defp generate_perform_body(ctx_var, ast) do
     quote do
       case unquote(ast) do
@@ -309,6 +319,7 @@ defmodule Convex.Director do
         :done -> Convex.Context.done(unquote(ctx_var))
         {:done, result} -> Convex.Context.done(unquote(ctx_var), result)
         {:failed, reason} -> Convex.Context.failed(unquote(ctx_var), reason)
+        {:produce, items} -> Convex.Context.produce(unquote(ctx_var), items)
       end
     end
   end
