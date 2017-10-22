@@ -116,7 +116,7 @@ defmodule Convex.DirectorTest do
     delegate "param.*", Convex.DirectorTest.ParamDirector
   end
 
-  defmodule StrictValidateDirector do
+  defmodule StrictValidateDirector1 do
     use Convex.Director
     alias Convex.DirectorTest.DummyDirector
     alias Convex.OperationError
@@ -179,7 +179,7 @@ defmodule Convex.DirectorTest do
     end
   end
 
-  defmodule LaxValidateDirector1 do
+  defmodule StrictValidateDirector2 do
     use Convex.Director
     alias Convex.DirectorTest.DummyDirector
     alias Convex.OperationError
@@ -240,11 +240,13 @@ defmodule Convex.DirectorTest do
     end
   end
 
-  defmodule LaxValidateDirector2 do
+  defmodule LaxValidateDirector do
     use Convex.Director
     alias Convex.DirectorTest.DummyDirector
     alias Convex.OperationError
     alias Convex.Context, as: Ctx
+
+    @enforce_validation false
 
     delegate "*", DummyDirector
 
@@ -398,6 +400,39 @@ defmodule Convex.DirectorTest do
     end
 
     validate "foo.bar", args, do: Map.put(args, :x, :buz)
+  end
+
+
+  defmodule RecursiveDirector do
+    use Convex.Director
+
+    @enforce_validation false
+
+    perform "toto", ctx, args do
+      _perform(ctx, [:tata], Map.put(args, :toto, true))
+    end
+
+    def perform(ctx, [:tata], args) do
+      _perform(ctx, [:tutu], Map.put(args, :tata, true))
+    end
+
+    delegate "*", DummyDirector
+
+    validate "foo" = op, ctx, %{v: 1} = args do
+      args = args
+        |> Map.put(:foo1, true)
+        |> Map.put(:v, 2)
+      _validate(ctx, op, args)
+    end
+
+    def validate(ctx, [:foo], %{v: 2} = args) do
+      args = args
+        |> Map.put(:foo2, true)
+        |> Map.put(:v, 3)
+      _validate(ctx, [:foo], args)
+    end
+
+    validate "foo", args, do: Map.put(args, :foo3, true)
   end
 
 
@@ -670,25 +705,25 @@ defmodule Convex.DirectorTest do
 
 
   test "validate" do
-    anon_ctx1 = Sync.new(director: StrictValidateDirector)
-    auth_ctx1 = Sync.new(director: StrictValidateDirector)
+    anon_ctx1 = Sync.new(director: StrictValidateDirector1)
+    auth_ctx1 = Sync.new(director: StrictValidateDirector1)
       |> Ctx.authenticate(true, nil)
       |> Ctx.attach("sid")
 
-    anon_ctx2 = Sync.new(director: LaxValidateDirector1)
-    auth_ctx2 = Sync.new(director: LaxValidateDirector1)
+    anon_ctx2 = Sync.new(director: StrictValidateDirector2)
+    auth_ctx2 = Sync.new(director: StrictValidateDirector2)
       |> Ctx.authenticate(true, nil)
       |> Ctx.attach("sid")
 
-    anon_ctx3 = Sync.new(director: LaxValidateDirector2)
-    auth_ctx3 = Sync.new(director: LaxValidateDirector2)
+    anon_ctx3 = Sync.new(director: LaxValidateDirector)
+    auth_ctx3 = Sync.new(director: LaxValidateDirector)
       |> Ctx.authenticate(true, nil)
       |> Ctx.attach("sid")
 
     config = [
-      {StrictValidateDirector, anon_ctx1, auth_ctx1},
-      {LaxValidateDirector1, anon_ctx2, auth_ctx2},
-      {LaxValidateDirector2, anon_ctx3, auth_ctx3}
+      {StrictValidateDirector1, anon_ctx1, auth_ctx1},
+      {StrictValidateDirector2, anon_ctx2, auth_ctx2},
+      {LaxValidateDirector, anon_ctx3, auth_ctx3}
     ]
     for {mod, ctx, auth_ctx} <- config do
 
@@ -830,13 +865,17 @@ defmodule Convex.DirectorTest do
 
 
   test "validate enforcement" do
-    strict_ctx = Sync.new(director: StrictValidateDirector)
-    lax_ctx = Sync.new(director: LaxValidateDirector1)
+    strict1_ctx = Sync.new(director: StrictValidateDirector1)
+    strict2_ctx = Sync.new(director: StrictValidateDirector2)
+    lax_ctx = Sync.new(director: LaxValidateDirector)
 
     res = perform lax_ctx, do: handler15 toto: 18
     assert {:ok, {[:handler15], %{toto: 18}}} == res
 
-    res = perform strict_ctx, do: handler15 toto: 18
+    res = perform strict1_ctx, do: handler15 toto: 18
+    assert {:error, :unknown_operation} == res
+
+    res = perform strict2_ctx, do: handler15 toto: 18
     assert {:error, :unknown_operation} == res
   end
 
@@ -851,6 +890,29 @@ defmodule Convex.DirectorTest do
     assert {:ok, %{a: 16}} = mod.validate(ctx, [:foo, :bar], %{a: 8})
     assert {:ok, %{a: "TEST"}} = mod.validate(ctx, [:foo, :bar], %{a: "test"})
     assert {:ok, %{a: :test, x: :buz}} = mod.validate(ctx, [:foo, :bar], %{a: :test})
+  end
+
+
+  test "recursive" do
+    ctx = Sync.new(director: RecursiveDirector)
+
+    res = perform ctx, do: toto a: 1
+    assert {:ok, {[:tutu], %{a: 1, toto: true, tata: true}}} == res
+
+    res = perform ctx, do: tata a: 2
+    assert {:ok, {[:tutu], %{a: 2, tata: true}}} == res
+
+    res = perform ctx, do: tutu a: 3
+    assert {:ok, {[:tutu], %{a: 3}}} == res
+
+    res = perform ctx, do: foo v: 1
+    assert {:ok, {[:foo], %{v: 3, foo1: true, foo2: true, foo3: true}}} == res
+
+    res = perform ctx, do: foo v: 2
+    assert {:ok, {[:foo], %{v: 3, foo2: true, foo3: true}}} == res
+
+    res = perform ctx, do: foo v: 3
+    assert {:ok, {[:foo], %{v: 3, foo3: true}}} == res
   end
 
 end

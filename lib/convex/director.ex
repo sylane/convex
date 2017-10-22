@@ -132,7 +132,13 @@ defmodule Convex.Director do
 
 
   defmacro __before_compile__(_env) do
-    enforce? = true == Module.get_attribute(__CALLER__.module, :enforce_validation)
+    enforce? = case Module.get_attribute(__CALLER__.module, :enforce_validation) do
+      true -> true
+      false -> false
+      nil -> true
+      value ->
+        raise CompileError, description: "invalide value for 'enforce_validation' attribute: #{inspect value}"
+    end
     perform_funs = Module.get_attribute(__CALLER__.module, :perform_functions)
       |> Enum.reverse()
     validate_funs = Module.get_attribute(__CALLER__.module, :validate_functions)
@@ -189,7 +195,13 @@ defmodule Convex.Director do
     end
 
     all = pub_funs ++ perform_funs ++ perform_last ++ validate_funs ++ validate_last
-    quote do: (unquote_splicing(all))
+    ast = quote do: (unquote_splicing(all))
+
+    if true == Module.get_attribute(__CALLER__.module, :debug) do
+      IO.puts ">>>>> GENERATED CODE FOR #{__CALLER__.module}\n#{Macro.to_string(ast)}"
+    end
+
+    ast
   end
 
 
@@ -293,6 +305,7 @@ defmodule Convex.Director do
   defp generate_perform_body(ctx_var, ast) do
     quote do
       case unquote(ast) do
+        %Convex.Context{} = result -> result
         :done -> Convex.Context.done(unquote(ctx_var))
         {:done, result} -> Convex.Context.done(unquote(ctx_var), result)
         {:failed, reason} -> Convex.Context.failed(unquote(ctx_var), reason)
