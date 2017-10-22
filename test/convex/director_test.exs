@@ -384,16 +384,16 @@ defmodule Convex.DirectorTest do
 
     validate "foo.bar", a: 1, do: :ok
 
-    def validate(ctx, [:foo, :bar], %{a: 2} = args), do: {:ok, Map.put(args, :x, :foo)}
+    def validate(_ctx, [:foo, :bar], %{a: 2} = args), do: {:ok, Map.put(args, :x, :foo)}
 
-    def validate(ctx, [:foo, :bar], %{a: 3} = args) do
+    def validate(_ctx, [:foo, :bar], %{a: 3} = args) do
       {:ok, Map.put(args, :x, :bar)}
     end
 
-    def validate(ctx, [:foo, :bar], %{a: n} = args)
+    def validate(_ctx, [:foo, :bar], %{a: n} = args)
       when is_number(n), do: {:ok, Map.put(args, :a, n * 2)}
 
-    def validate(ctx, [:foo, :bar], %{a: s} = args) when is_binary(s) do
+    def validate(_ctx, [:foo, :bar], %{a: s} = args) when is_binary(s) do
       {:ok, Map.put(args, :a, String.upcase(s))}
     end
 

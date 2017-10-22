@@ -102,64 +102,32 @@ defmodule Convex.Director do
 
 
   defmacro perform(op, params_and_blocks) do
-    {blocks, args} = Keyword.split(params_and_blocks, [:do, :else])
-    do_ast = Keyword.fetch!(blocks, :do)
-    ctx_var = Macro.var(:ctx, __MODULE__)
-    generate_perform(__CALLER__, ctx_var, ctx_var, op, args, do_ast)
+    generate(__CALLER__, op, params_and_blocks, &generate_perform/6)
   end
 
 
   defmacro perform(op, args_or_ctx, params_and_blocks) do
-    case Keyword.split(params_and_blocks, [:do, :else]) do
-      {blocks, []} ->
-        do_ast = Keyword.fetch!(blocks, :do)
-        ctx_var = Macro.var(:ctx, __MODULE__)
-        generate_perform(__CALLER__, ctx_var, ctx_var, op, args_or_ctx, do_ast)
-      {blocks, args} ->
-        do_ast = Keyword.fetch!(blocks, :do)
-        ctx_var = Macro.var(:ctx, __MODULE__)
-        ctx_ast = quote do: unquote(args_or_ctx) = unquote(ctx_var)
-        generate_perform(__CALLER__, ctx_ast, ctx_var, op, args, do_ast)
-    end
+    generate(__CALLER__, op, args_or_ctx, params_and_blocks, &generate_perform/6)
   end
 
 
   defmacro perform(op, ctx, args, blocks) do
-    do_ast = Keyword.fetch!(blocks, :do)
-    ctx_var = Macro.var(:ctx, __MODULE__)
-    ctx_ast = quote do: unquote(ctx) = unquote(ctx_var)
-    generate_perform(__CALLER__, ctx_ast, ctx_var, op, args, do_ast)
+    generate(__CALLER__, op, ctx, args, blocks, &generate_perform/6)
   end
 
 
   defmacro validate(op, params_and_blocks) do
-    {blocks, args} = Keyword.split(params_and_blocks, [:do, :else])
-    do_ast = Keyword.fetch!(blocks, :do)
-    ctx_var = Macro.var(:ctx, __MODULE__)
-    generate_validate(__CALLER__, ctx_var, ctx_var, op, args, do_ast)
+    generate(__CALLER__, op, params_and_blocks, &generate_validate/6)
   end
 
 
   defmacro validate(op, args_or_ctx, params_and_blocks) do
-    case Keyword.split(params_and_blocks, [:do, :else]) do
-      {blocks, []} ->
-        do_ast = Keyword.fetch!(blocks, :do)
-        ctx_var = Macro.var(:ctx, __MODULE__)
-        generate_validate(__CALLER__, ctx_var, ctx_var, op, args_or_ctx, do_ast)
-      {blocks, args} ->
-        do_ast = Keyword.fetch!(blocks, :do)
-        ctx_var = Macro.var(:ctx, __MODULE__)
-        ctx_ast = quote do: unquote(args_or_ctx) = unquote(ctx_var)
-        generate_validate(__CALLER__, ctx_ast, ctx_var, op, args, do_ast)
-    end
+    generate(__CALLER__, op, args_or_ctx, params_and_blocks, &generate_validate/6)
   end
 
 
   defmacro validate(op, ctx, args, blocks) do
-    do_ast = Keyword.fetch!(blocks, :do)
-    ctx_var = Macro.var(:ctx, __MODULE__)
-    ctx_ast = quote do: unquote(ctx) = unquote(ctx_var)
-    generate_validate(__CALLER__, ctx_ast, ctx_var, op, args, do_ast)
+    generate(__CALLER__, op, ctx, args, blocks, &generate_validate/6)
   end
 
 
@@ -253,6 +221,37 @@ defmodule Convex.Director do
   end
 
   defp parse_args(_, args), do: args
+
+
+  defp generate(caller, op, params_and_blocks, generator) do
+    {blocks, args} = Keyword.split(params_and_blocks, [:do, :else])
+    do_ast = Keyword.fetch!(blocks, :do)
+    ctx_var = Macro.var(:ctx, __MODULE__)
+    generator.(caller, ctx_var, ctx_var, op, args, do_ast)
+  end
+
+
+  defp generate(caller, op, args_or_ctx, params_and_blocks, generator) do
+    case Keyword.split(params_and_blocks, [:do, :else]) do
+      {blocks, []} ->
+        do_ast = Keyword.fetch!(blocks, :do)
+        ctx_var = Macro.var(:ctx, __MODULE__)
+        generator.(caller, ctx_var, ctx_var, op, args_or_ctx, do_ast)
+      {blocks, args} ->
+        do_ast = Keyword.fetch!(blocks, :do)
+        ctx_var = Macro.var(:ctx, __MODULE__)
+        ctx_ast = quote do: unquote(args_or_ctx) = unquote(ctx_var)
+        generator.(caller, ctx_ast, ctx_var, op, args, do_ast)
+    end
+  end
+
+
+  defp generate(caller, op, ctx, args, blocks, generator) do
+    do_ast = Keyword.fetch!(blocks, :do)
+    ctx_var = Macro.var(:ctx, __MODULE__)
+    ctx_ast = quote do: unquote(ctx) = unquote(ctx_var)
+    generator.(caller, ctx_ast, ctx_var, op, args, do_ast)
+  end
 
 
   defp generate_delegate(caller, op, mod) do
