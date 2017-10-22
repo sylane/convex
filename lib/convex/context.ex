@@ -230,7 +230,10 @@ defmodule Convex.Context do
   around to another node and should be resumed there.
   """
 
-  def resume(%Ctx{dir: dir} = ctx, op, args), do: dir.perform(ctx, op, args)
+  # def resume(%Ctx{dir: dir} = ctx, op, args), do: dir.perform(ctx, op, args)
+  def resume(%Ctx{dir: dir} = ctx, op, args) do
+    dir.perform(ctx, op, args)
+  end
 
 
   def done(ctx, result \\ nil)
