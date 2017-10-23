@@ -302,18 +302,55 @@ defmodule Convex.Director do
     {ctx_var, nil, nil, body_ast}
   end
 
-  defp generate_perform_body(_caller, expr_ast) do
+  defp generate_perform_body(_caller, {:delegate, mod_ast}) do
+    ctx_var = Macro.var(:ctx, __MODULE__)
+    op_var = Macro.var(:op, __MODULE__)
+    args_var = Macro.var(:args, __MODULE__)
+    body_ast = quote do
+      unquote(mod_ast).perform(unquote(ctx_var), unquote(op_var), unquote(args_var))
+    end
+    {ctx_var, op_var, args_var, body_ast}
+  end
+
+  defp generate_perform_body(_caller, {:{}, _, [:delegate, mod_ast, op_ast]}) do
+    ctx_var = Macro.var(:ctx, __MODULE__)
+    args_var = Macro.var(:args, __MODULE__)
+    body_ast = quote do
+      unquote(mod_ast).perform(unquote(ctx_var), unquote(op_ast), unquote(args_var))
+    end
+    {ctx_var, nil, args_var, body_ast}
+  end
+
+  defp generate_perform_body(_caller, {:{}, _, [:delegate, mod_ast, op_ast, args_ast]}) do
     ctx_var = Macro.var(:ctx, __MODULE__)
     body_ast = quote do
-      case unquote(expr_ast) do
+      unquote(mod_ast).perform(unquote(ctx_var), unquote(op_ast), unquote(args_ast))
+    end
+    {ctx_var, nil, nil, body_ast}
+  end
+
+  defp generate_perform_body(_caller, expr_ast) do
+    ctx_var = Macro.var(:ctx, __MODULE__)
+    op_var = Macro.var(:op, __MODULE__)
+    args_var = Macro.var(:args, __MODULE__)
+    body_ast = quote do
+      # Ugly hack to remove copmilation warnings...
+      f = fn () -> unquote(expr_ast) end
+      case f.() do
         %Convex.Context{} = result -> result
         :ok -> Convex.Context.done(unquote(ctx_var))
         {:ok, result} -> Convex.Context.done(unquote(ctx_var), result)
         {:error, reason} -> Convex.Context.failed(unquote(ctx_var), reason)
         {:produce, items} -> Convex.Context.produce(unquote(ctx_var), items)
+        {:delegate, mod} ->
+          mod.perform(unquote(ctx_var), unquote(op_var), unquote(args_var))
+        {:delegate, mod, op} ->
+          mod.perform(unquote(ctx_var), op, unquote(args_var))
+        {:delegate, mod, op, args} ->
+          mod.perform(unquote(ctx_var), op, args)
       end
     end
-    {ctx_var, nil, nil, body_ast}
+    {ctx_var, op_var, args_var, body_ast}
   end
 
 
@@ -367,11 +404,13 @@ defmodule Convex.Director do
   defp generate_validate_body(_caller, expr_ast) do
     args_var = Macro.var(:args, __MODULE__)
     body_ast = quote do
-      case unquote(expr_ast) do
+      # Ugly hack to remove copmilation warnings...
+      f = fn () -> unquote(expr_ast) end
+      case f.() do
+        result when is_map(result) -> {:ok, result}
         :ok -> {:ok, unquote(args_var)}
         {:ok, result} when is_map(result) -> {:ok, result}
         {:error, _reason} = error -> error
-        result when is_map(result) -> {:ok, result}
       end
     end
     {nil, nil, args_var, body_ast}
@@ -405,7 +444,9 @@ defmodule Convex.Director do
     op_var = Macro.var(:op, __MODULE__)
     args_var = Macro.var(:args, __MODULE__)
     body_ast = quote do
-      case unquote(expr_ast) do
+      # Ugly hack to remove copmilation warnings...
+      f = fn () -> unquote(expr_ast) end
+      case f.() do
         mod when is_atom(mod) ->
           mod.perform(unquote(ctx_var), unquote(op_var), unquote(args_var))
         _ ->

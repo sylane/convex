@@ -112,8 +112,6 @@ defmodule Convex.DirectorTest do
     use Convex.Director
     alias Convex.DirectorTest.BasicDirector
 
-    @debug true
-
     def delegate("basic.*"), do: BasicDirector
     def delegate("param.*"), do: Convex.DirectorTest.ParamDirector
   end
