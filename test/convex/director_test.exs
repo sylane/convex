@@ -19,9 +19,9 @@ defmodule Convex.DirectorTest do
   defmodule BasicDirector do
     use Convex.Director
 
-    def perform("basic.handler1.*"), do: {:ok, :handler_basic_1}
+    def perform(~o"basic.handler1.*"), do: {:ok, :handler_basic_1}
 
-    def perform("basic.handler2.spam"), do: {:error, :handler_basic_2}
+    def perform(~o"basic.handler2.spam"), do: {:error, :handler_basic_2}
 
     def perform("basic.handler3"), do: :ok
   end
@@ -126,7 +126,7 @@ defmodule Convex.DirectorTest do
 
     def delegate("*"), do: DummyDirector
 
-    def validate("handler01"), do: :ok
+    def validate(~o"handler01"), do: :ok
     def validate("handler02"), do: {:error, :handler02_error}
     def validate("handler03"), do: raise OperationError,
       message: "Handler 3 Error", reason: :handler03_error

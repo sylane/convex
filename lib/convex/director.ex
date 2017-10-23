@@ -9,13 +9,6 @@ defmodule Convex.Director do
 
 
   #===========================================================================
-  # Attributes
-  #===========================================================================
-
-  @operation_rx ~r/^(?:\*|[a-z][a-zA-Z0-9_]*(?:\.[a-z][a-zA-Z0-9_]*)*(?:\.\*)?)$/
-
-
-  #===========================================================================
   # Macros
   #===========================================================================
 
@@ -27,6 +20,7 @@ defmodule Convex.Director do
 
       import Kernel, except: [def: 2]
       import Convex.Director, only: [def: 2]
+      import Convex.Sigils, only: [sigil_o: 2]
 
       @before_compile Convex.Director
     end
@@ -475,19 +469,12 @@ defmodule Convex.Director do
   end
 
   defp convert_operation(caller, op) when is_binary(op) do
-    case Regex.run(@operation_rx, op) do
-      nil -> raise CompileError,
-                    description: "invalide operation #{inspect op}",
-                    file: caller.file, line: caller.line
-      _ ->
-        parts = Enum.map(String.split(op, "."), &String.to_atom/1)
-        case Enum.split(parts, -2) do
-          {[], [:*]} -> quote do: [_|_]
-          {rest, [last, :*]} ->
-            tail = [{:|, [], [last, {:_, [], nil}]}]
-            rest ++ tail
-          _ -> parts
-        end
+    case Convex.Operation.ast_from_string(op) do
+      {:ok, ast} -> ast
+      :error ->
+        raise CompileError,
+              description: "invalide operation #{inspect op}",
+              file: caller.file, line: caller.line
     end
   end
 
