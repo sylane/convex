@@ -26,108 +26,146 @@ defmodule Convex.Director do
       @beaviour Convex.Director
 
       import Kernel, except: [def: 2]
-      import Convex.Director, only: [
-        def: 2,
-        delegate: 2,
-        perform: 2,
-        perform: 3,
-        perform: 4,
-        validate: 2,
-        validate: 3,
-        validate: 4,
-      ]
+      import Convex.Director, only: [def: 2]
 
       @before_compile Convex.Director
     end
   end
 
 
-  defmacro def({:when, ctx1, [{:perform, ctx2, [_, _, _] = args}, when_ast]}, blocks) do
-    call = {:when, ctx1, [{:_perform, ctx2, [_, _, _] = args}, when_ast]}
-    do_ast = Keyword.fetch!(blocks, :do)
-    ast = quote do
-      defp unquote(call) do
-        unquote(do_ast)
-      end
-    end
-    Module.put_attribute(__CALLER__.module, :perform_functions, ast)
+  defmacro def({:when, info1, [{:perform, info2, [ctx_ast, op_ast, arg_ast]}, when_ast]}, blocks_ast) do
+    {ctx_ast, op_ast, arg_ast, body_ast}
+      = parse_perform(__CALLER__, ctx_ast, op_ast, arg_ast, blocks_ast)
+    call_ast = {:when, info1, [{:_perform, info2, [ctx_ast, op_ast, arg_ast]}, when_ast]}
+    generate_perform(__CALLER__, call_ast, body_ast)
   end
 
-  defmacro def({:perform, ctx, [_, _, _] = args}, blocks) do
-    call = {:_perform, ctx, args}
-    do_ast = Keyword.fetch!(blocks, :do)
-    ast = quote do
-      defp unquote(call) do
-        unquote(do_ast)
-      end
-    end
-    Module.put_attribute(__CALLER__.module, :perform_functions, ast)
+  defmacro def({:perform, info, [ctx_ast, op_ast, arg_ast]}, blocks_ast) do
+    {ctx_ast, op_ast, arg_ast, body_ast}
+      = parse_perform(__CALLER__, ctx_ast, op_ast, arg_ast, blocks_ast)
+    call_ast = {:_perform, info, [ctx_ast, op_ast, arg_ast]}
+    generate_perform(__CALLER__, call_ast, body_ast)
   end
 
-  defmacro def({:when, ctx1, [{:validate, ctx2, [_, _, _] = args}, when_ast]}, blocks) do
-    call = {:when, ctx1, [{:_validate, ctx2, [_, _, _] = args}, when_ast]}
-    do_ast = Keyword.fetch!(blocks, :do)
-    ast = quote do
-      defp unquote(call) do
-        unquote(do_ast)
-      end
-    end
-    Module.put_attribute(__CALLER__.module, :validate_functions, ast)
+  defmacro def({:when, info1, [{:perform, info2, [op_ast, arg_ast]}, when_ast]}, blocks_ast) do
+    {ctx_ast, op_ast, arg_ast, body_ast}
+      = parse_perform(__CALLER__, nil, op_ast, arg_ast, blocks_ast)
+    call_ast = {:when, info1, [{:_perform, info2, [ctx_ast, op_ast, arg_ast]}, when_ast]}
+    generate_perform(__CALLER__, call_ast, body_ast)
   end
 
-  defmacro def({:validate, ctx, [_, _, _] = args}, blocks) do
-    call = {:_validate, ctx, args}
-    do_ast = Keyword.fetch!(blocks, :do)
-    ast = quote do
-      defp unquote(call) do
-        unquote(do_ast)
-      end
-    end
-    Module.put_attribute(__CALLER__.module, :validate_functions, ast)
+  defmacro def({:perform, info, [op_ast, arg_ast]}, blocks_ast) do
+    {ctx_ast, op_ast, arg_ast, body_ast}
+      = parse_perform(__CALLER__, nil, op_ast, arg_ast, blocks_ast)
+    call_ast = {:_perform, info, [ctx_ast, op_ast, arg_ast]}
+    generate_perform(__CALLER__, call_ast, body_ast)
   end
 
-  defmacro def(call, blocks) do
-    do_ast = Keyword.fetch!(blocks, :do)
+  defmacro def({:when, info1, [{:perform, info2, [op_ast]}, when_ast]}, blocks_ast) do
+    {ctx_ast, op_ast, arg_ast, body_ast}
+      = parse_perform(__CALLER__, nil, op_ast, nil, blocks_ast)
+    call_ast = {:when, info1, [{:_perform, info2, [ctx_ast, op_ast, arg_ast]}, when_ast]}
+    generate_perform(__CALLER__, call_ast, body_ast)
+  end
+
+  defmacro def({:perform, info, [op_ast]}, blocks_ast) do
+    {ctx_ast, op_ast, arg_ast, body_ast}
+      = parse_perform(__CALLER__, nil, op_ast, nil, blocks_ast)
+    call_ast = {:_perform, info, [ctx_ast, op_ast, arg_ast]}
+    generate_perform(__CALLER__, call_ast, body_ast)
+  end
+
+  defmacro def({:when, info1, [{:validate, info2, [ctx_ast, op_ast, arg_ast]}, when_ast]}, blocks_ast) do
+    {ctx_ast, op_ast, arg_ast, body_ast}
+      = parse_validate(__CALLER__, ctx_ast, op_ast, arg_ast, blocks_ast)
+    call_ast = {:when, info1, [{:_validate, info2, [ctx_ast, op_ast, arg_ast]}, when_ast]}
+    generate_validate(__CALLER__, call_ast, body_ast)
+  end
+
+  defmacro def({:validate, info, [ctx_ast, op_ast, arg_ast]}, blocks_ast) do
+    {ctx_ast, op_ast, arg_ast, body_ast}
+      = parse_validate(__CALLER__, ctx_ast, op_ast, arg_ast, blocks_ast)
+    call_ast = {:_validate, info, [ctx_ast, op_ast, arg_ast]}
+    generate_validate(__CALLER__, call_ast, body_ast)
+  end
+
+  defmacro def({:when, info1, [{:validate, info2, [op_ast, arg_ast]}, when_ast]}, blocks_ast) do
+    {ctx_ast, op_ast, arg_ast, body_ast}
+      = parse_validate(__CALLER__, nil, op_ast, arg_ast, blocks_ast)
+    call_ast = {:when, info1, [{:_validate, info2, [ctx_ast, op_ast, arg_ast]}, when_ast]}
+    generate_validate(__CALLER__, call_ast, body_ast)
+  end
+
+  defmacro def({:validate, info, [op_ast, arg_ast]}, blocks_ast) do
+    {ctx_ast, op_ast, arg_ast, body_ast}
+      = parse_validate(__CALLER__, nil, op_ast, arg_ast, blocks_ast)
+    call_ast = {:_validate, info, [ctx_ast, op_ast, arg_ast]}
+    generate_validate(__CALLER__, call_ast, body_ast)
+  end
+
+  defmacro def({:when, info1, [{:validate, info2, [op_ast]}, when_ast]}, blocks_ast) do
+    {ctx_ast, op_ast, arg_ast, body_ast}
+      = parse_validate(__CALLER__, nil, op_ast, nil, blocks_ast)
+    call_ast = {:when, info1, [{:_validate, info2, [ctx_ast, op_ast, arg_ast]}, when_ast]}
+    generate_validate(__CALLER__, call_ast, body_ast)
+  end
+
+  defmacro def({:validate, info, [op_ast]}, blocks_ast) do
+    {ctx_ast, op_ast, arg_ast, body_ast}
+      = parse_validate(__CALLER__, nil, op_ast, nil, blocks_ast)
+    call_ast = {:_validate, info, [ctx_ast, op_ast, arg_ast]}
+    generate_validate(__CALLER__, call_ast, body_ast)
+  end
+
+  defmacro def({:when, info1, [{:delegate, info2, [ctx_ast, op_ast, arg_ast]}, when_ast]}, blocks_ast) do
+    {ctx_ast, op_ast, arg_ast, body_ast}
+      = parse_delegate(__CALLER__, ctx_ast, op_ast, arg_ast, blocks_ast)
+    call_ast = {:when, info1, [{:_delegate, info2, [ctx_ast, op_ast, arg_ast]}, when_ast]}
+    generate_perform(__CALLER__, call_ast, body_ast)
+  end
+
+  defmacro def({:delegate, info, [ctx_ast, op_ast, arg_ast]}, blocks_ast) do
+    {ctx_ast, op_ast, arg_ast, body_ast}
+      = parse_delegate(__CALLER__, ctx_ast, op_ast, arg_ast, blocks_ast)
+    call_ast = {:_perform, info, [ctx_ast, op_ast, arg_ast]}
+    generate_perform(__CALLER__, call_ast, body_ast)
+  end
+
+  defmacro def({:when, info1, [{:delegate, info2, [op_ast, arg_ast]}, when_ast]}, blocks_ast) do
+    {ctx_ast, op_ast, arg_ast, body_ast}
+      = parse_delegate(__CALLER__, nil, op_ast, arg_ast, blocks_ast)
+    call_ast = {:when, info1, [{:_perform, info2, [ctx_ast, op_ast, arg_ast]}, when_ast]}
+    generate_perform(__CALLER__, call_ast, body_ast)
+  end
+
+  defmacro def({:delegate, info, [op_ast, arg_ast]}, blocks_ast) do
+    {ctx_ast, op_ast, arg_ast, body_ast}
+      = parse_delegate(__CALLER__, nil, op_ast, arg_ast, blocks_ast)
+    call_ast = {:_perform, info, [ctx_ast, op_ast, arg_ast]}
+    generate_perform(__CALLER__, call_ast, body_ast)
+  end
+
+  defmacro def({:when, info1, [{:delegate, info2, [op_ast]}, when_ast]}, blocks_ast) do
+    {ctx_ast, op_ast, arg_ast, body_ast}
+      = parse_delegate(__CALLER__, nil, op_ast, nil, blocks_ast)
+    call_ast = {:when, info1, [{:_perform, info2, [ctx_ast, op_ast, arg_ast]}, when_ast]}
+    generate_perform(__CALLER__, call_ast, body_ast)
+  end
+
+  defmacro def({:delegate, info, [op_ast]}, blocks_ast) do
+    {ctx_ast, op_ast, arg_ast, body_ast}
+      = parse_delegate(__CALLER__, nil, op_ast, nil, blocks_ast)
+    call_ast = {:_perform, info, [ctx_ast, op_ast, arg_ast]}
+    generate_perform(__CALLER__, call_ast, body_ast)
+  end
+
+  defmacro def(call_ast, blocks_ast) do
+    body_ast = Keyword.fetch!(blocks_ast, :do)
     quote do
-      def unquote(call) do
-        unquote(do_ast)
+      def unquote(call_ast) do
+        unquote(body_ast)
       end
     end
-  end
-
-
-  defmacro delegate(op, mod) do
-    generate_delegate(__CALLER__, op, mod)
-  end
-
-
-  defmacro perform(op, params_and_blocks) do
-    generate(__CALLER__, op, params_and_blocks, &generate_perform/6)
-  end
-
-
-  defmacro perform(op, args_or_ctx, params_and_blocks) do
-    generate(__CALLER__, op, args_or_ctx, params_and_blocks, &generate_perform/6)
-  end
-
-
-  defmacro perform(op, ctx, args, blocks) do
-    generate(__CALLER__, op, ctx, args, blocks, &generate_perform/6)
-  end
-
-
-  defmacro validate(op, params_and_blocks) do
-    generate(__CALLER__, op, params_and_blocks, &generate_validate/6)
-  end
-
-
-  defmacro validate(op, args_or_ctx, params_and_blocks) do
-    generate(__CALLER__, op, args_or_ctx, params_and_blocks, &generate_validate/6)
-  end
-
-
-  defmacro validate(op, ctx, args, blocks) do
-    generate(__CALLER__, op, ctx, args, blocks, &generate_validate/6)
   end
 
 
@@ -150,7 +188,7 @@ defmodule Convex.Director do
           def perform(ctx, op, args) do
             _perform(ctx, op, args)
           end
-          def validate(ctx, op, args) do
+          def validate(_ctx, _op, args) do
             {:ok, args}
           end
         end
@@ -209,86 +247,22 @@ defmodule Convex.Director do
   # Internal Functions
   #===========================================================================
 
-  defp parse_operation(caller, op, default_var_name \\ :op)
 
-  defp parse_operation(caller, {:=, _, [op, {name, _, ns} = var]}, _)
-    when is_binary(op) and is_atom(name) and is_atom(ns) do
-    {var, operation_to_ast(caller, op)}
-  end
-
-  defp parse_operation(caller, {:=, _, [{name, _, ns} = var, op]}, _)
-    when is_binary(op) and  is_atom(name) and is_atom(ns) do
-    {var, operation_to_ast(caller, op)}
-  end
-
-  defp parse_operation(caller, op, default_var_name)
-    when is_binary(op) do
-    var = Macro.var(default_var_name, __MODULE__)
-    {var, operation_to_ast(caller, op)}
-  end
-
-  defp parse_operation(caller, ast, _default_var_name) do
-    raise CompileError,
-      description: "invalid operation #{Macro.to_string(ast)}",
-      file: caller.file, line: caller.line
+  defp parse_perform(caller, ctx_ast, op_ast, args_ast, blocks_ast) do
+    body_ast = Keyword.fetch!(blocks_ast, :do)
+    {ctx_var, op_var, args_var, body_ast}
+      = generate_perform_body(caller, body_ast)
+    ctx_ast = generate_argument(ctx_ast, ctx_var)
+    op_ast = convert_operation(caller, op_ast)
+    op_ast = generate_argument(op_ast, op_var)
+    args_ast = generate_argument(args_ast, args_var)
+    {ctx_ast, op_ast, args_ast, body_ast}
   end
 
 
-  defp parse_args(caller, items) when is_list(items) do
-    {:%{}, [line: caller.line], items}
-  end
-
-  defp parse_args(_, args), do: args
-
-
-  defp generate(caller, op, params_and_blocks, generator) do
-    {blocks, args} = Keyword.split(params_and_blocks, [:do, :else])
-    do_ast = Keyword.fetch!(blocks, :do)
-    ctx_var = Macro.var(:ctx, __MODULE__)
-    generator.(caller, ctx_var, ctx_var, op, args, do_ast)
-  end
-
-
-  defp generate(caller, op, args_or_ctx, params_and_blocks, generator) do
-    case Keyword.split(params_and_blocks, [:do, :else]) do
-      {blocks, []} ->
-        do_ast = Keyword.fetch!(blocks, :do)
-        ctx_var = Macro.var(:ctx, __MODULE__)
-        generator.(caller, ctx_var, ctx_var, op, args_or_ctx, do_ast)
-      {blocks, args} ->
-        do_ast = Keyword.fetch!(blocks, :do)
-        ctx_var = Macro.var(:ctx, __MODULE__)
-        ctx_ast = quote do: unquote(args_or_ctx) = unquote(ctx_var)
-        generator.(caller, ctx_ast, ctx_var, op, args, do_ast)
-    end
-  end
-
-
-  defp generate(caller, op, ctx, args, blocks, generator) do
-    do_ast = Keyword.fetch!(blocks, :do)
-    ctx_var = Macro.var(:ctx, __MODULE__)
-    ctx_ast = quote do: unquote(ctx) = unquote(ctx_var)
-    generator.(caller, ctx_ast, ctx_var, op, args, do_ast)
-  end
-
-
-  defp generate_delegate(caller, op, mod) do
-    {op_var, op_ast} = parse_operation(caller, op)
+  defp generate_perform(caller, call_ast, body_ast) do
     ast = quote do
-      defp _perform(ctx, unquote(op_ast) = unquote(op_var), args) do
-        unquote(mod).perform(ctx, unquote(op_var), args)
-      end
-    end
-    Module.put_attribute(caller.module, :perform_functions, ast)
-  end
-
-
-  defp generate_perform(caller, ctx_ast, ctx_var, op, args, do_ast) do
-    args_ast = parse_args(caller, args)
-    {op_var, op_ast} = parse_operation(caller, op, :_)
-    body_ast = generate_perform_body(ctx_var, do_ast)
-    ast = quote do
-      defp _perform(unquote(ctx_ast), unquote(op_ast) = unquote(op_var), unquote(args_ast)) do
+      defp unquote(call_ast) do
         unquote(body_ast)
       end
     end
@@ -296,41 +270,68 @@ defmodule Convex.Director do
   end
 
 
-  defp generate_perform_body(ctx_var, :done) do
-    quote do: Convex.Context.done(unquote(ctx_var))
+  defp generate_perform_body(_caller, :ok) do
+    ctx_var = Macro.var(:ctx, __MODULE__)
+    body_ast = quote do
+      Convex.Context.done(unquote(ctx_var))
+    end
+    {ctx_var, nil, nil, body_ast}
   end
 
-  defp generate_perform_body(ctx_var, {:done, ast}) do
-    quote do: Convex.Context.done(unquote(ctx_var), unquote(ast))
+  defp generate_perform_body(_caller, {:ok, result_ast}) do
+    ctx_var = Macro.var(:ctx, __MODULE__)
+    body_ast = quote do
+      Convex.Context.done(unquote(ctx_var), unquote(result_ast))
+    end
+    {ctx_var, nil, nil, body_ast}
   end
 
-  defp generate_perform_body(ctx_var, {:failed, ast}) do
-    quote do: Convex.Context.failed(unquote(ctx_var), unquote(ast))
+  defp generate_perform_body(_caller, {:error, reason_ast}) do
+    ctx_var = Macro.var(:ctx, __MODULE__)
+    body_ast = quote do
+      Convex.Context.failed(unquote(ctx_var), unquote(reason_ast))
+    end
+    {ctx_var, nil, nil, body_ast}
   end
 
-  defp generate_perform_body(ctx_var, {:produce, ast}) do
-    quote do: Convex.Context.produce(unquote(ctx_var), unquote(ast))
+  defp generate_perform_body(_caller, {:produce, items_ast}) do
+    ctx_var = Macro.var(:ctx, __MODULE__)
+    body_ast = quote do
+      Convex.Context.produce(unquote(ctx_var), unquote(items_ast))
+    end
+    {ctx_var, nil, nil, body_ast}
   end
 
-  defp generate_perform_body(ctx_var, ast) do
-    quote do
-      case unquote(ast) do
+  defp generate_perform_body(_caller, expr_ast) do
+    ctx_var = Macro.var(:ctx, __MODULE__)
+    body_ast = quote do
+      case unquote(expr_ast) do
         %Convex.Context{} = result -> result
-        :done -> Convex.Context.done(unquote(ctx_var))
-        {:done, result} -> Convex.Context.done(unquote(ctx_var), result)
-        {:failed, reason} -> Convex.Context.failed(unquote(ctx_var), reason)
+        :ok -> Convex.Context.done(unquote(ctx_var))
+        {:ok, result} -> Convex.Context.done(unquote(ctx_var), result)
+        {:error, reason} -> Convex.Context.failed(unquote(ctx_var), reason)
         {:produce, items} -> Convex.Context.produce(unquote(ctx_var), items)
       end
     end
+    {ctx_var, nil, nil, body_ast}
   end
 
 
-  defp generate_validate(caller, ctx_ast, _ctx_var, op, args, do_ast) do
-    args_ast = parse_args(caller, args)
-    {op_var, op_ast} = parse_operation(caller, op, :_)
-    {args_var, body_ast} = generate_validate_body(do_ast)
+  defp parse_validate(caller, ctx_ast, op_ast, args_ast, blocks_ast) do
+    body_ast = Keyword.fetch!(blocks_ast, :do)
+    {ctx_var, op_var, args_var, body_ast}
+      = generate_validate_body(caller, body_ast)
+    ctx_ast = generate_argument(ctx_ast, ctx_var)
+    op_ast = convert_operation(caller, op_ast)
+    op_ast = generate_argument(op_ast, op_var)
+    args_ast = generate_argument(args_ast, args_var)
+    {ctx_ast, op_ast, args_ast, body_ast}
+  end
+
+
+  defp generate_validate(caller, call_ast, body_ast) do
     ast = quote do
-      defp _validate(unquote(ctx_ast), unquote(op_ast) = unquote(op_var), unquote(args_ast) = unquote(args_var)) do
+      defp unquote(call_ast) do
         unquote(body_ast)
       end
     end
@@ -338,42 +339,101 @@ defmodule Convex.Director do
   end
 
 
-  defp generate_validate_body(:ok) do
+  defp generate_validate_body(_caller, :ok) do
     args_var = Macro.var(:args, __MODULE__)
-    ast = quote do: {:ok, unquote(args_var)}
-    {args_var, ast}
+    body_ast = quote do
+      {:ok, unquote(args_var)}
+    end
+    {nil, nil, args_var, body_ast}
   end
 
-  defp generate_validate_body({:ok, _} = ast) do
-    args_var = Macro.var(:_, __MODULE__)
-    {args_var, ast}
+  defp generate_validate_body(_caller, {:ok, _} = result_ast) do
+    {nil, nil, nil, result_ast}
   end
 
-  defp generate_validate_body({:error, _} = ast) do
-    args_var = Macro.var(:_, __MODULE__)
-    {args_var, ast}
+  defp generate_validate_body(_caller, {:error, _} = result_ast) do
+    {nil, nil, nil, result_ast}
   end
 
-  defp generate_validate_body({:raise, _, [_|_]} = ast) do
-    args_var = Macro.var(:_, __MODULE__)
-    {args_var, ast}
+  defp generate_validate_body(_caller, {:raise, _, [_|_]} = result_ast) do
+    {nil, nil, nil, result_ast}
   end
 
-  defp generate_validate_body(ast) do
+  defp generate_validate_body(_caller, {:%{}, _, _} = result_ast) do
+    body_ast = quote do: {:ok, unquote(result_ast)}
+    {nil, nil, nil, body_ast}
+  end
+
+  defp generate_validate_body(_caller, expr_ast) do
     args_var = Macro.var(:args, __MODULE__)
-    ast = quote do
-      case unquote(ast) do
+    body_ast = quote do
+      case unquote(expr_ast) do
         :ok -> {:ok, unquote(args_var)}
         {:ok, result} when is_map(result) -> {:ok, result}
         {:error, _reason} = error -> error
         result when is_map(result) -> {:ok, result}
       end
     end
-    {args_var, ast}
+    {nil, nil, args_var, body_ast}
   end
 
 
-  defp operation_to_ast(caller, op) do
+  defp parse_delegate(caller, ctx_ast, op_ast, args_ast, blocks_ast) do
+    body_ast = Keyword.fetch!(blocks_ast, :do)
+    {ctx_var, op_var, args_var, body_ast}
+      = generate_delegate_body(caller, body_ast)
+    ctx_ast = generate_argument(ctx_ast, ctx_var)
+    op_ast = convert_operation(caller, op_ast)
+    op_ast = generate_argument(op_ast, op_var)
+    args_ast = generate_argument(args_ast, args_var)
+    {ctx_ast, op_ast, args_ast, body_ast}
+  end
+
+
+  defp generate_delegate_body(_caller, {:__aliases__, _, _} = mod) do
+    ctx_var = Macro.var(:ctx, __MODULE__)
+    op_var = Macro.var(:op, __MODULE__)
+    args_var = Macro.var(:args, __MODULE__)
+    body_ast = quote do
+      unquote(mod).perform(unquote(ctx_var), unquote(op_var), unquote(args_var))
+    end
+    {ctx_var, op_var, args_var, body_ast}
+  end
+
+  defp generate_delegate_body(_caller, expr_ast) do
+    ctx_var = Macro.var(:ctx, __MODULE__)
+    op_var = Macro.var(:op, __MODULE__)
+    args_var = Macro.var(:args, __MODULE__)
+    body_ast = quote do
+      case unquote(expr_ast) do
+        mod when is_atom(mod) ->
+          mod.perform(unquote(ctx_var), unquote(op_var), unquote(args_var))
+        _ ->
+          Convex.Errors.unknown_operation!(unquote(ctx_var))
+      end
+    end
+    {ctx_var, op_var, args_var, body_ast}
+  end
+
+
+  defp generate_argument(nil, nil), do: Macro.var(:_, __MODULE__)
+
+  defp generate_argument(var, var), do: var
+
+  defp generate_argument(nil, var), do: var
+
+  defp generate_argument(ast, nil), do: ast
+
+  defp generate_argument(ast, var) do
+    quote do: unquote(ast) = unquote(var)
+  end
+
+
+  defp convert_operation(caller, {:=, info, [a, b]}) do
+    {:=, info, [convert_operation(caller, a), convert_operation(caller, b)]}
+  end
+
+  defp convert_operation(caller, op) when is_binary(op) do
     case Regex.run(@operation_rx, op) do
       nil -> raise CompileError,
                     description: "invalide operation #{inspect op}",
@@ -389,5 +449,7 @@ defmodule Convex.Director do
         end
     end
   end
+
+  defp convert_operation(_caller, ast), do: ast
 
 end

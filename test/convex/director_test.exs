@@ -11,19 +11,19 @@ defmodule Convex.DirectorTest do
   defmodule DummyDirector do
     use Convex.Director
 
-    perform op = "handler04.*", args, do: {:done, {op, args}}
-    perform "*" = op, args, do: {:done, {op, args}}
+    def perform(op = "handler04.*", args), do: {:ok, {op, args}}
+    def perform("*" = op, args), do: {:ok, {op, args}}
   end
 
 
   defmodule BasicDirector do
     use Convex.Director
 
-    perform "basic.handler1.*", do: {:done, :handler_basic_1}
+    def perform("basic.handler1.*"), do: {:ok, :handler_basic_1}
 
-    perform "basic.handler2.spam", do: {:failed, :handler_basic_2}
+    def perform("basic.handler2.spam"), do: {:error, :handler_basic_2}
 
-    perform "basic.handler3", do: :done
+    def perform("basic.handler3"), do: :ok
   end
 
   defmodule ParamDirector do
@@ -31,71 +31,71 @@ defmodule Convex.DirectorTest do
     alias Convex.OperationError
     alias Convex.Context, as: Ctx
 
-    perform "param.handler1.*", a: 1, do: {:done, :handler_param_1_a}
+    def perform("param.handler1.*", %{a: 1}), do: {:ok, :handler_param_1_a}
 
-    perform "param.handler1.*", a: 2 do
-      {:done, :handler_param_1_b}
+    def perform("param.handler1.*", %{a: 2}) do
+      {:ok, :handler_param_1_b}
     end
 
-    perform "param.handler1.*", %{a: 3}, do: {:done, :handler_param_1_c}
+    def perform("param.handler1.*", %{a: 3}), do: {:ok, :handler_param_1_c}
 
-    perform "param.handler1.*", %{a: 4} do
-      {:done, :handler_param_1_d}
+    def perform("param.handler1.*", %{a: 4}) do
+      {:ok, :handler_param_1_d}
     end
 
-    perform "param.handler2.*", %Ctx{auth: true}, a: 1 do
-      {:done, :handler_param_2_a}
+    def perform(%Ctx{auth: true}, "param.handler2.*", %{a: 1}) do
+      {:ok, :handler_param_2_a}
     end
 
-    perform "param.handler2.*", _ctx, a: 1 do
-      {:done, :handler_param_2_b}
+    def perform(_ctx, "param.handler2.*", %{a: 1}) do
+      {:ok, :handler_param_2_b}
     end
 
-    perform "param.handler2.*", %Ctx{auth: true}, %{a: 2} do
-      {:done, :handler_param_2_c}
+    def perform(%Ctx{auth: true}, "param.handler2.*", %{a: 2}) do
+      {:ok, :handler_param_2_c}
     end
 
-    perform "param.handler2.*", _ctx, a: 2 do
-      {:done, :handler_param_2_d}
+    def perform("param.handler2.*", %{a: 2}) do
+      {:ok, :handler_param_2_d}
     end
 
-    perform "param.handler2.*", %Ctx{auth: auth}, %{a: 3} do
-      {:done, {:handler_param_2_e, auth}}
+    def perform(%Ctx{auth: auth}, "param.handler2.*", %{a: 3}) do
+      {:ok, {:handler_param_2_e, auth}}
     end
 
-    perform "param.handler2.*", %Ctx{auth: auth}, %{a: 4}, do: {:done, {:handler_param_2_f, auth}}
+    def perform(%Ctx{auth: auth}, "param.handler2.*", %{a: 4}), do: {:ok, {:handler_param_2_f, auth}}
 
-    perform "param.handler2.*", %Ctx{auth: true} = ctx, %{a: 5} do
-      {:done, {:handler_param_2_g, ctx.sess}}
+    def perform(%Ctx{auth: true} = ctx, "param.handler2.*", %{a: 5}) do
+      {:ok, {:handler_param_2_g, ctx.sess}}
     end
 
-    perform "param.handler2.*", %Ctx{auth: true} = ctx, %{a: 6}, do: {:done, {:handler_param_2_h, ctx.sess}}
+    def perform(%Ctx{auth: true} = ctx, "param.handler2.*", %{a: 6}), do: {:ok, {:handler_param_2_h, ctx.sess}}
 
-    perform "param.handler2.*", %Ctx{auth: auth}, %{a: 7}, do: {:done, {:handler_param_2_i, auth}}
+    def perform(%Ctx{auth: auth}, "param.handler2.*", %{a: 7}), do: {:ok, {:handler_param_2_i, auth}}
 
 
-    perform "param.handler2.*", %Ctx{auth: true}, a: 8, do: {:done, :handler_param_2_j}
+    def perform(%Ctx{auth: true}, "param.handler2.*", %{a: 8}), do: {:ok, :handler_param_2_j}
 
-    perform "param.handler2.*", _ctx, a: 8, do: {:done, :handler_param_2_k}
+    def perform("param.handler2.*", %{a: 8}), do: {:ok, :handler_param_2_k}
 
-    def perform(ctx, [:param, :handler3], %{a: a})
+    def perform([:param, :handler3], %{a: a})
       when is_binary(a) do
-        Ctx.done(ctx, {:handler_param_3, String.upcase(a)})
+        {:ok, {:handler_param_3, String.upcase(a)}}
     end
 
     def perform(ctx, [:param, :handler4], %{a: a}) when is_binary(a), do: Ctx.done(ctx, {:handler_param_4, String.upcase(a)})
 
-    def perform(ctx, [:param, :handler5], %{a: a}) do
-        Ctx.done(ctx, {:handler_param_5, a})
+    def perform([:param, :handler5], %{a: a}) do
+        {:ok, {:handler_param_5, a}}
     end
 
     def perform(ctx, [:param, :handler6], %{a: a}), do: Ctx.done(ctx, {:handler_param_6, a})
 
-    perform "param.handler7.spam", action: action do
+    def perform("param.handler7.spam", %{action: action}) do
       case action do
-        :noresult -> :done
-        :ok -> {:done, :handler_param_7}
-        :error -> {:failed, :handler_param_7_a}
+        :noresult -> :ok
+        :ok -> {:ok, :handler_param_7}
+        :error -> {:error, :handler_param_7_a}
         :raise ->
           raise OperationError,
             message: "Handler 7 Error",
@@ -103,8 +103,8 @@ defmodule Convex.DirectorTest do
       end
     end
 
-    perform "param.handler8", a: %{b: %{c: [{_, _}, {d}]}} do
-      {:done, {:handler_param_8, d}}
+    def perform("param.handler8", %{a: %{b: %{c: [{_, _}, {d}]}}}) do
+      {:ok, {:handler_param_8, d}}
     end
   end
 
@@ -112,8 +112,10 @@ defmodule Convex.DirectorTest do
     use Convex.Director
     alias Convex.DirectorTest.BasicDirector
 
-    delegate "basic.*", BasicDirector
-    delegate "param.*", Convex.DirectorTest.ParamDirector
+    @debug true
+
+    def delegate("basic.*"), do: BasicDirector
+    def delegate("param.*"), do: Convex.DirectorTest.ParamDirector
   end
 
   defmodule StrictValidateDirector1 do
@@ -124,49 +126,49 @@ defmodule Convex.DirectorTest do
 
     @enforce_validation true
 
-    delegate "*", DummyDirector
+    def delegate("*"), do: DummyDirector
 
-    validate "handler01", do: :ok
-    validate "handler02", do: {:error, :handler02_error}
-    validate "handler03", do: raise OperationError,
+    def validate("handler01"), do: :ok
+    def validate("handler02"), do: {:error, :handler02_error}
+    def validate("handler03"), do: raise OperationError,
       message: "Handler 3 Error", reason: :handler03_error
 
-    validate "handler04.*", args, do: Map.put(args, :x, :foo)
-    validate "handler05.*", _args, do: {:error, :handler05_error}
-    validate "handler06.*", _args, do: raise OperationError,
+    def validate("handler04.*", args), do: Map.put(args, :x, :foo)
+    def validate("handler05.*", _args), do: {:error, :handler05_error}
+    def validate("handler06.*", _args), do: raise OperationError,
       message: "Handler 6 Error", reason: :handler06_error
 
-    validate "handler07.*", %{} = args, do: Map.put(args, :x, :bar)
-    validate "handler08.*", %{}, do: {:error, :handler08_error}
-    validate "handler09.*", %{}, do: raise OperationError,
+    def validate("handler07.*", %{} = args), do: Map.put(args, :x, :bar)
+    def validate("handler08.*", %{}), do: {:error, :handler08_error}
+    def validate("handler09.*", %{}), do: raise OperationError,
       message: "Handler 9 Error", reason: :handler09_error
 
-    validate "handler10", %{a: 1}, do: :ok
-    validate "handler10", %{a: 2} = args, do: Map.put(args, :x, :buz)
-    validate "handler10", %{a: 3}, do: {:error, :handler10_error_1_a}
-    validate "handler10", %{a: _}, do: raise OperationError,
+    def validate("handler10", %{a: 1}), do: :ok
+    def validate("handler10", %{a: 2} = args), do: Map.put(args, :x, :buz)
+    def validate("handler10", %{a: 3}), do: {:error, :handler10_error_1_a}
+    def validate("handler10", %{a: _}), do: raise OperationError,
       message: "Handler 10 Error", reason: :handler10_error_1_b
-    validate "handler10", _, do: {:error, :handler10_error_2}
+    def validate("handler10", _), do: {:error, :handler10_error_2}
 
-    validate "handler11", a: 1, do: :ok
-    validate "handler11", a: 2, do: {:error, :handler11_error_1_a}
-    validate "handler11", a: _, do: raise OperationError,
+    def validate("handler11", %{a: 1}), do: :ok
+    def validate("handler11", %{a: 2}), do: {:error, :handler11_error_1_a}
+    def validate("handler11", %{a: _}), do: raise OperationError,
       message: "Handler 11 Error", reason: :handler11_error_1_b
-    validate "handler11", _, do: {:error, :handler11_error_2}
+    def validate("handler11"), do: {:error, :handler11_error_2}
 
-    validate "handler12", %Ctx{auth: true} = ctx, %{a: 1} = args, do: Map.put(args, :x, ctx.sess)
-    validate "handler12", %Ctx{}, %{a: 1}, do: {:error, :handler12_error_a}
-    validate "handler12", %Ctx{auth: nil}, %{a: 2}, do: :ok
-    validate "handler12", _, %{a: 2}, do: raise OperationError,
+    def validate(%Ctx{auth: true} = ctx, "handler12", %{a: 1} = args), do: Map.put(args, :x, ctx.sess)
+    def validate(%Ctx{}, "handler12", %{a: 1}), do: {:error, :handler12_error_a}
+    def validate(%Ctx{auth: nil}, "handler12", %{a: 2}), do: :ok
+    def validate("handler12", %{a: 2}), do: raise OperationError,
       message: "Handler 12 Error", reason: :handler12_error_b
 
-    validate "handler13", %Ctx{auth: true}, a: 1, do: :ok
-    validate "handler13", %Ctx{}, a: 1, do: {:error, :handler13_error_a}
-    validate "handler13", %Ctx{auth: nil}, a: 2, do: :ok
-    validate "handler13", _, a: 2, do: raise OperationError,
+    def validate(%Ctx{auth: true}, "handler13", %{a: 1}), do: :ok
+    def validate(%Ctx{}, "handler13", %{a: 1}), do: {:error, :handler13_error_a}
+    def validate(%Ctx{auth: nil}, "handler13", %{a: 2}), do: :ok
+    def validate("handler13", %{a: 2}), do: raise OperationError,
       message: "Handler 13 Error", reason: :handler13_error_b
 
-    validate "handler14", %{action: action} = args do
+    def validate("handler14", %{action: action} = args) do
       case action do
         :ok -> :ok
         :args -> args
@@ -185,49 +187,49 @@ defmodule Convex.DirectorTest do
     alias Convex.OperationError
     alias Convex.Context, as: Ctx
 
-    delegate "*", DummyDirector
+    def delegate("*"), do: DummyDirector
 
-    validate "handler01", do: :ok
-    validate "handler02", do: {:error, :handler02_error}
-    validate "handler03", do: raise OperationError,
+    def validate("handler01"), do: :ok
+    def validate("handler02"), do: {:error, :handler02_error}
+    def validate("handler03"), do: raise OperationError,
       message: "Handler 3 Error", reason: :handler03_error
 
-    validate "handler04.*", args, do: Map.put(args, :x, :foo)
-    validate "handler05.*", _args, do: {:error, :handler05_error}
-    validate "handler06.*", _args, do: raise OperationError,
+    def validate("handler04.*", args), do: Map.put(args, :x, :foo)
+    def validate("handler05.*", _args), do: {:error, :handler05_error}
+    def validate("handler06.*", _args), do: raise OperationError,
       message: "Handler 6 Error", reason: :handler06_error
 
-    validate "handler07.*", %{} = args, do: Map.put(args, :x, :bar)
-    validate "handler08.*", %{}, do: {:error, :handler08_error}
-    validate "handler09.*", %{}, do: raise OperationError,
+    def validate("handler07.*", %{} = args), do: Map.put(args, :x, :bar)
+    def validate("handler08.*", %{}), do: {:error, :handler08_error}
+    def validate("handler09.*", %{}), do: raise OperationError,
       message: "Handler 9 Error", reason: :handler09_error
 
-    validate "handler10", %{a: 1}, do: :ok
-    validate "handler10", %{a: 2} = args, do: Map.put(args, :x, :buz)
-    validate "handler10", %{a: 3}, do: {:error, :handler10_error_1_a}
-    validate "handler10", %{a: _}, do: raise OperationError,
+    def validate("handler10", %{a: 1}), do: :ok
+    def validate("handler10", %{a: 2} = args), do: Map.put(args, :x, :buz)
+    def validate("handler10", %{a: 3}), do: {:error, :handler10_error_1_a}
+    def validate("handler10", %{a: _}), do: raise OperationError,
       message: "Handler 10 Error", reason: :handler10_error_1_b
-    validate "handler10", _, do: {:error, :handler10_error_2}
+    def validate("handler10", _), do: {:error, :handler10_error_2}
 
-    validate "handler11", a: 1, do: :ok
-    validate "handler11", a: 2, do: {:error, :handler11_error_1_a}
-    validate "handler11", a: _, do: raise OperationError,
+    def validate("handler11", %{a: 1}), do: :ok
+    def validate("handler11", %{a: 2}), do: {:error, :handler11_error_1_a}
+    def validate("handler11", %{a: _}), do: raise OperationError,
       message: "Handler 11 Error", reason: :handler11_error_1_b
-    validate "handler11", _, do: {:error, :handler11_error_2}
+    def validate("handler11"), do: {:error, :handler11_error_2}
 
-    validate "handler12", %Ctx{auth: true} = ctx, %{a: 1} = args, do: Map.put(args, :x, ctx.sess)
-    validate "handler12", %Ctx{}, %{a: 1}, do: {:error, :handler12_error_a}
-    validate "handler12", %Ctx{auth: nil}, %{a: 2}, do: :ok
-    validate "handler12", _, %{a: 2}, do: raise OperationError,
+    def validate(%Ctx{auth: true} = ctx, "handler12", %{a: 1} = args), do: Map.put(args, :x, ctx.sess)
+    def validate(%Ctx{}, "handler12", %{a: 1}), do: {:error, :handler12_error_a}
+    def validate(%Ctx{auth: nil}, "handler12", %{a: 2}), do: :ok
+    def validate("handler12", %{a: 2}), do: raise OperationError,
       message: "Handler 12 Error", reason: :handler12_error_b
 
-    validate "handler13", %Ctx{auth: true}, a: 1, do: :ok
-    validate "handler13", %Ctx{}, a: 1, do: {:error, :handler13_error_a}
-    validate "handler13", %Ctx{auth: nil}, a: 2, do: :ok
-    validate "handler13", _, a: 2, do: raise OperationError,
+    def validate(%Ctx{auth: true}, "handler13", %{a: 1}), do: :ok
+    def validate(%Ctx{}, "handler13", %{a: 1}), do: {:error, :handler13_error_a}
+    def validate(%Ctx{auth: nil}, "handler13", %{a: 2}), do: :ok
+    def validate("handler13", %{a: 2}), do: raise OperationError,
       message: "Handler 13 Error", reason: :handler13_error_b
 
-    validate "handler14", %{action: action} = args do
+    def validate("handler14", %{action: action} = args) do
       case action do
         :ok -> :ok
         :args -> args
@@ -248,125 +250,125 @@ defmodule Convex.DirectorTest do
 
     @enforce_validation false
 
-    delegate "*", DummyDirector
+    def delegate("*"), do: DummyDirector
 
-    validate "handler01" do
+    def validate("handler01") do
       :ok
     end
 
-    validate "handler02" do
+    def validate("handler02") do
       {:error, :handler02_error}
     end
 
-    validate "handler03" do
+    def validate("handler03") do
       raise OperationError,
         message: "Handler 3 Error", reason: :handler03_error
     end
 
-    validate "handler04.*", args do
+    def validate("handler04.*", args) do
       Map.put(args, :x, :foo)
     end
 
-    validate "handler05.*", _args do
+    def validate("handler05.*", _args) do
       {:error, :handler05_error}
     end
 
-    validate "handler06.*", _args do
+    def validate("handler06.*", _args) do
       raise OperationError,
         message: "Handler 6 Error", reason: :handler06_error
     end
 
 
-    validate "handler07.*", %{} = args do
+    def validate("handler07.*", %{} = args) do
       Map.put(args, :x, :bar)
     end
 
-    validate "handler08.*", %{} do
+    def validate("handler08.*", %{}) do
       {:error, :handler08_error}
     end
 
-    validate "handler09.*", %{} do
+    def validate("handler09.*", %{}) do
       raise OperationError,
         message: "Handler 9 Error", reason: :handler09_error
     end
 
 
-    validate "handler10", %{a: 1} do
+    def validate("handler10", %{a: 1}) do
       :ok
     end
 
-    validate "handler10", %{a: 2} = args do
+    def validate("handler10", %{a: 2} = args) do
       Map.put(args, :x, :buz)
     end
 
-    validate "handler10", %{a: 3} do
+    def validate("handler10", %{a: 3}) do
       {:error, :handler10_error_1_a}
     end
 
-    validate "handler10", %{a: _} do
+    def validate("handler10", %{a: _}) do
       raise OperationError,
         message: "Handler 10 Error", reason: :handler10_error_1_b
     end
 
-    validate "handler10", _ do
+    def validate("handler10") do
       {:error, :handler10_error_2}
     end
 
 
-    validate "handler11", a: 1 do
+    def validate("handler11", %{a: 1}) do
       :ok
     end
 
-    validate "handler11", a: 2 do
+    def validate("handler11", %{a: 2}) do
       {:error, :handler11_error_1_a}
     end
 
-    validate "handler11", a: _ do
+    def validate("handler11", %{a: _}) do
       raise OperationError,
         message: "Handler 11 Error", reason: :handler11_error_1_b
     end
 
-    validate "handler11", _ do
+    def validate("handler11") do
       {:error, :handler11_error_2}
     end
 
 
-    validate "handler12", %Ctx{auth: true} = ctx, %{a: 1} = args do
+    def validate(%Ctx{auth: true} = ctx, "handler12", %{a: 1} = args) do
       Map.put(args, :x, ctx.sess)
     end
 
-    validate "handler12", %Ctx{}, %{a: 1} do
+    def validate(%Ctx{}, "handler12", %{a: 1}) do
       {:error, :handler12_error_a}
     end
 
-    validate "handler12", %Ctx{auth: nil}, %{a: 2} do
+    def validate(%Ctx{auth: nil}, "handler12", %{a: 2}) do
       :ok
     end
 
-    validate "handler12", _, %{a: 2} do
+    def validate("handler12", %{a: 2}) do
       raise OperationError,
         message: "Handler 12 Error", reason: :handler12_error_b
     end
 
 
-    validate "handler13", %Ctx{auth: true}, a: 1 do
+    def validate(%Ctx{auth: true}, "handler13", %{a: 1}) do
       :ok
     end
 
-    validate "handler13", %Ctx{}, a: 1 do
+    def validate(%Ctx{}, "handler13", %{a: 1}) do
       {:error, :handler13_error_a}
     end
 
-    validate "handler13", %Ctx{auth: nil}, a: 2 do
+    def validate(%Ctx{auth: nil}, "handler13", %{a: 2}) do
       :ok
     end
 
-    validate "handler13", _, a: 2 do
+    def validate("handler13", %{a: 2}) do
       raise OperationError,
         message: "Handler 13 Error", reason: :handler13_error_b
     end
 
-    validate "handler14", %{action: action} = args do
+    def validate("handler14", %{action: action} = args) do
       case action do
         :ok -> :ok
         :args -> args
@@ -382,11 +384,11 @@ defmodule Convex.DirectorTest do
   defmodule DefValidateDirector do
     use Convex.Director
 
-    delegate "*", DummyDirector
+    def delegate("*"), do: DummyDirector
 
-    validate "foo.bar", a: 1, do: :ok
+    def validate("foo.bar", %{a: 1}), do: :ok
 
-    def validate(_ctx, [:foo, :bar], %{a: 2} = args), do: {:ok, Map.put(args, :x, :foo)}
+    def validate([:foo, :bar], %{a: 2} = args), do: {:ok, Map.put(args, :x, :foo)}
 
     def validate(_ctx, [:foo, :bar], %{a: 3} = args) do
       {:ok, Map.put(args, :x, :bar)}
@@ -399,7 +401,7 @@ defmodule Convex.DirectorTest do
       {:ok, Map.put(args, :a, String.upcase(s))}
     end
 
-    validate "foo.bar", args, do: Map.put(args, :x, :buz)
+    def validate("foo.bar", args), do: Map.put(args, :x, :buz)
   end
 
 
@@ -408,7 +410,7 @@ defmodule Convex.DirectorTest do
 
     @enforce_validation false
 
-    perform "toto", ctx, args do
+    def perform(ctx, "toto", args) do
       _perform(ctx, [:tata], Map.put(args, :toto, true))
     end
 
@@ -416,9 +418,9 @@ defmodule Convex.DirectorTest do
       _perform(ctx, [:tutu], Map.put(args, :tata, true))
     end
 
-    delegate "*", DummyDirector
+    def delegate("*"), do: DummyDirector
 
-    validate "foo" = op, ctx, %{v: 1} = args do
+    def validate(ctx, "foo" = op, %{v: 1} = args) do
       args = args
         |> Map.put(:foo1, true)
         |> Map.put(:v, 2)
@@ -432,16 +434,16 @@ defmodule Convex.DirectorTest do
       _validate(ctx, [:foo], args)
     end
 
-    validate "foo", args, do: Map.put(args, :foo3, true)
+    def validate("foo", args), do: Map.put(args, :foo3, true)
   end
 
 
   defmodule ProduceDirector do
     use Convex.Director
 
-    perform "double", v: v, do: {:done, v * 2}
-    perform "foo", do: {:produce, [1, 2, 3]}
-    perform "bar", from: from, to: to do
+    def perform("double", %{v: v}), do: {:ok, v * 2}
+    def perform("foo"), do: {:produce, [1, 2, 3]}
+    def perform("bar", %{from: from, to: to}) do
       values = for v <- from..to, do: v
       {:produce, values}
     end
