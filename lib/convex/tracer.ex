@@ -1,5 +1,7 @@
 defmodule Convex.Tracer do
 
+  @moduledoc false
+
   #===========================================================================
   # Includes
   #===========================================================================
@@ -16,38 +18,38 @@ defmodule Convex.Tracer do
         require Logger
         alias Convex.Format
         import unquote(__MODULE__),
-          only: [op_trace: 3, op_trace: 4, op_trace: 5, op_trace: 6]
+          only: [cvx_trace: 3, cvx_trace: 4, cvx_trace: 5, cvx_trace: 6]
       end
     end
 
 
-    defmacro op_trace(tag, ctx, args) do
+    defmacro cvx_trace(tag, ctx, args) do
       state = quote do: unquote(ctx).state
       depth = quote do: unquote(ctx).depth
       forked = quote do: unquote(ctx).forked
       numbers = quote do: [unquote(depth), unquote(forked)]
       op = quote do: Convex.Context.operation(unquote(ctx))
       quote do
-        op_trace(unquote(tag), unquote(state), unquote(numbers),
+        cvx_trace(unquote(tag), unquote(state), unquote(numbers),
                  unquote(op), unquote(args))
       end
     end
 
 
-    defmacro op_trace(tag, ctx, args, result) do
+    defmacro cvx_trace(tag, ctx, args, result) do
       state = quote do: unquote(ctx).state
       depth = quote do: unquote(ctx).depth
       forked = quote do: unquote(ctx).forked
       numbers = quote do: [unquote(depth), unquote(forked)]
       op = quote do: Convex.Context.operation(unquote(ctx))
       quote do
-        op_trace(unquote(tag), unquote(state), unquote(numbers),
+        cvx_trace(unquote(tag), unquote(state), unquote(numbers),
                  unquote(op), unquote(args), unquote(result))
       end
     end
 
 
-    defmacro op_trace(tag, state, numbers, op, args, result \\ {}) do
+    defmacro cvx_trace(tag, state, numbers, op, args, result \\ {}) do
       mod = _macro_module(__CALLER__.module)
       case _traced_ops() do
         nil -> :ok
@@ -83,7 +85,7 @@ defmodule Convex.Tracer do
 
 
   defp _traced_ops() do
-    case System.get_env("TRACE_OPS") do
+    case System.get_env("CVX_TRACE") do
     nil -> nil
     value ->
       case String.downcase(value) do
@@ -115,7 +117,7 @@ defmodule Convex.Tracer do
 
 
   defp _macro_format_self() do
-    quote do: String.pad_trailing(List.to_string(:erlang.pid_to_list(self)), 10)
+    quote do: String.pad_trailing(List.to_string(:erlang.pid_to_list(self())), 10)
   end
 
 

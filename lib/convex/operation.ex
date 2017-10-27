@@ -1,5 +1,9 @@
 defmodule Convex.Operation do
 
+  @moduledoc """
+  Helper module to convert a string to the proper internal format.
+  """
+
   #===========================================================================
   # Attributes
   #===========================================================================
@@ -11,6 +15,19 @@ defmodule Convex.Operation do
   # API Functions
   #===========================================================================
 
+  @spec from_string(opname :: String.t) :: any
+  @doc """
+  Converts a string to the internal representation (list of atoms).
+
+  It suports partial operation for pattern matching:
+
+  ```
+  from_string("foo.bar") -> [:foo, :bar]
+  from_string("foo.bar.*") -> [:foo, :bar | _]
+  from_string("*") -> [_ | _]
+  ```
+  """
+
   defmacro from_string(op_ast) do
     case ast_from_string(op_ast) do
       {:ok, ast} -> ast
@@ -21,6 +38,13 @@ defmodule Convex.Operation do
     end
   end
 
+
+  @spec ast_from_string(op_ast :: any) :: ast :: any
+  @doc """
+  Generate the AST for an operation given the AST of a string.
+
+  **ONLY** to be used in macros.
+  """
 
   def ast_from_string({:<<>>, _, [op_str]}), do: ast_from_string(op_str)
 

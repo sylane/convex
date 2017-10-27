@@ -1,11 +1,19 @@
 defmodule Convex.Context.Process do
 
+
+# If the caller wants to keep any request traking information the backend
+#   may be keeping, it MUST specify the option `track: true`, otherwise the
+#   backend MAY strip it.
+#   """
+
   @behaviour Convex.Context
 
 
   #===========================================================================
   # Includes
   #===========================================================================
+
+  use Convex.Tracer
 
   alias __MODULE__, as: This
   alias Convex.Proxy.Process, as: Proxy
@@ -131,6 +139,26 @@ defmodule Convex.Context.Process do
   end
 
 
+  def pipeline_performed(_opts, %Ctx{state: :done} = ctx, _this) do
+    cvx_trace(">>>>>>>>>>", :finished, [0, 0, 0], [:process, :done], [result: ctx.result])
+    ctx
+  end
+
+  def pipeline_performed(_opts, %Ctx{state: :failed} = ctx, _this) do
+    cvx_trace(">>>>>>>>>>", :finished, [0, 0, 0], [:process, :failed], [reason: ctx.result])
+    ctx
+  end
+
+  def pipeline_performed(_opts, %Ctx{state: :forked, delegated: []} = ctx, _this) do
+    cvx_trace(">>>>>>>>>>", :finished, [0, 0, 0], [:process, :forked], [results: ctx.result, delegated: []])
+    ctx
+  end
+
   def pipeline_performed(_opts, ctx, _this), do: ctx
+
+
+  def pipeline_performed!(opts, ctx, this) do
+    pipeline_performed(opts, ctx, this)
+  end
 
 end

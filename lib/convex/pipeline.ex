@@ -1,5 +1,266 @@
 defmodule Convex.Pipeline do
 
+  @moduledoc """
+  Module to create and perform pipeline of operation with a simple syntax.
+
+
+  ## Perform Syntax
+
+  There is two syntaxes to perfrom a pipeline, `perform` and `perform!`.
+  The difference is that when using a blocking context,
+  `perform` will return `{:ok, result}` or `{:error, reason}`,
+  and `perform!` will return the result directly or raise an exception.
+
+
+  ### Simple Example
+
+  After importing this module you can use the following syntax to perform a
+  pipeline of operation:
+
+    ```Elixir
+    perform ctx do
+      foo.bar num: 1, txt: "toto"
+      spam.bacon arg: true
+    end
+
+    ```
+
+  The behaviour of this pipeline will be different in function of the context
+  that is used (more exacly in function of the context's callback module).
+  If the context is `Convex.Context.Sync`, this will block until all the
+  operations are performed. It will use the configured director to route
+  the context to the service handling the operation `foo.bar` and perform
+  it with the arguments `%{num: 1, txt: "toto"}`. Then it will use the director
+  again to route the context to the service handling operation `spam.bacon`
+  and perform it with arguments `%{arg: true}`. Then the result of the last
+  operation will be returned.
+
+  The operations can optionaly be specified with the arguments enclosed
+  in parentesis:
+
+    ```Elixir
+    perform ctx do
+      foo.bar(num: 1, txt: "toto")
+      spam.bacon(arg: true)
+    end
+
+    ```
+
+
+  ### Operation Arguments
+
+  Arguments to the operations in a pipeline can be any variable defined outside
+  the pipeline scope if they are prefixed with `^` (Like `Ecto` queries):
+
+    ```Elixir
+    foo = 123
+    bar = "toto"
+    buz = false
+    perform ctx do
+      foo.bar num: ^foo, txt: ^bar
+      spam.bacon arg: ^buz
+    end
+
+    ```
+
+  If you already have all the operation arguments in a map variable you can
+  simply pass it by prefixing it with `^`:
+
+    ```Elixir
+    args = %{a: 1, b:2}
+    perform ctx, do: some.operation ^args
+
+    ```
+
+  This is equivalent to:
+
+    ```Elixir
+    a = 1; b = 2
+    perform ctx, do: some.operation(a: ^a, b: ^b)
+
+    ```
+
+  In the case you have a map variable with arguments but still need to provide
+  some more you can extend it with:
+
+    ```Elixir
+    args = %{a: 1, b:2}
+    perform ctx, do: some.operation %{^args | c: 3}
+
+    ```
+
+  This is equivalent to:
+
+    ```Elixir
+    a = 1; b = 2; c = 3
+    perform ctx, do: some.operation(a: ^a, b: ^b, c: ^c)
+
+    ```
+
+  A special argument is `ctx`. It is used to pass the context itself
+  or one of its *public* field as argument. If the `auth`, `sess` or `policy`
+  fields implement the `Access` protocol, sub-fields can be
+  deferenced with the dotted notation:
+
+    ```Elixir
+    perform ctx do
+      first.operation auth_value: ctx.auth.value, sess: ctx.sess, policy: ctx.policy
+      second.operation debug: ctx
+    end
+
+    ```
+
+
+  ### Stored Values
+
+  Any result of an intermediate operation can be stored to later use.
+  To do that, assigne the operation to a name and use it as argument
+  to the following operation (without prefixing it with `^`):
+
+    ```Elixir
+    perform ctx do
+      val = first.operation arg: "foo"
+      second.operation arg: val
+    end
+
+    ```
+
+  Stored values can be dereferenced using the dotted notation in the following
+  operations if they implement the `Access` protocol:
+
+    ```Elixir
+    perform ctx do
+      val = first.operation arg: "foo"
+      second.operation arg: val.sub.value
+    end
+
+    ```
+
+  In addition, the intermediary results can be *unpacked* from maps and tuples
+  to multiple stored values:
+
+    ```Elixir
+    perform ctx do
+      %{a: var1, b: var2} = first.operation arg: "foo"
+      {var3, var4} = second.operation arg: var1
+      third.operation a: var2, b: var3, c: var4
+    end
+
+    ```
+
+  ### Pipeline Result
+
+  By default the pipeline result value is the result of the last operation.
+
+  It is possible to return a stored value as the pipeline result, in this case
+  the result of the last operation will be ignored:
+
+    ```Elixir
+    perform ctx do
+      value = first.operation arg: "foo"
+      second.operation arg: value
+      value
+    end
+
+    ```
+
+  In addition, the pipeline result can be maps or a tuples *repacked*
+  from multiple stored values:
+
+    ```Elixir
+    perform ctx do
+      %{a: var1, b: var2} = first.operation arg: "foo"
+      {var3, var4, var5} = second.operation arg: "bar"
+      %{foo: var1, bar: {var2, var3, %{spam: var4, bacon: var5}}}
+    end
+
+    ```
+
+  Special return values are `ctx` and its *public* fields. If the `auth`,
+  `sess` or `policy` values implement the `Access` protocol, sub-fields can be
+  deferenced with the dotted notation:
+
+    ```Elixir
+    perform ctx do
+      some.operation ^args
+      {ctx, ctx.auth.value, ctx.sess, ctx.policy}
+    end
+
+    ```
+
+
+  ### Perform Arguments
+
+  If the context is not authenticated, you can pass the authentication data
+  to use to perform the pipeline as an argument:
+
+    ```Elixir
+    perform with: ctx, as: auth_data do
+      first.operation
+      second.operation
+    end
+
+    ```
+
+  In this case the context will be first authenticated with given authentication
+  data, and the context policy will be the default one if configured
+  (See `Convex.Config`). If you want to specify an explicit policy you can do:
+
+    ```Elixir
+    perform with: ctx, as: auth_data, policy: policy_data do
+      first.operation
+      second.operation
+    end
+
+    ```
+
+
+  ## Prepare Syntax
+
+  Another tool provided by this module is the `prepare` syntax.
+  This is used to create an operation pipeline without performing it.
+  It can later be performed by calling `Convex.Context.perform/2`,
+  `Convex.Context.perform/3`, `Convex.Context.perform!/2`
+  or `Convex.Context.perform!/3`:
+
+    ```Elixir
+    pipe = prepare do
+      res1 = first.operation a: ^a, b: true
+      res2 = second.operation ^args
+      {res1, res2}
+    end
+    Convex.Context.perfrom(ctx, pipe)
+
+    ```
+
+
+  ## Fork Syntax
+
+  And finally, this module provide a syntax to simplify simple
+  forks in the operation handlers. If an operation handler needs to generate
+  multiple results from multiple functions it can do:
+
+    ```Elixir
+      ctx = fork ctx do
+        Foo.foo(spam, bacon)
+        bar
+        buz(eggs)
+      end
+    ```
+
+  This is equivalent to:
+
+    ```Elixir
+      {ctx1, frk1} = Convex.Context.fork(ctx)
+      frk1 = Foo.foo(frk1, spam, bacon)
+      {ctx2, frk2} = Convex.Context.fork(ctx1)
+      frk2 = bar(frk2)
+      {ctx3, frk3} = Convex.Context.fork(ctx2)
+      frk3 = buz(frk3, eggs)
+      ctx = Convex.Context.join(ctx3, [frk1, frk2, frk3])
+    ```
+  """
+
   #===========================================================================
   # Types
   #===========================================================================
@@ -10,6 +271,15 @@ defmodule Convex.Pipeline do
   #===========================================================================
   # Macros
   #===========================================================================
+
+
+  @spec perform(Ctx.t | Keyword.t, Keyword.t)
+    :: {:ok, result :: any} | {:error, reason :: term}
+  @doc """
+  Macro to perform a pipeline of operation.
+
+  See the module documentation for more information.
+  """
 
   defmacro perform(opts, blocks) when is_list(opts) do
     def_fun_ast = quote do: Convex.Context.perform
@@ -35,6 +305,15 @@ defmodule Convex.Pipeline do
   end
 
 
+  @spec perform(Ctx.t | Keyword.t, Keyword.t) :: result :: any
+  @doc """
+  Macro to perform a pipeline of operation.
+
+  It will raise an exception if any operation fail.
+
+  See the module documentation for more information.
+  """
+
   defmacro perform!(opts, blocks) when is_list(opts) do
     def_fun_ast = quote do: Convex.Context.perform!
     fun_ast = Keyword.get(opts, :handler, def_fun_ast)
@@ -59,26 +338,24 @@ defmodule Convex.Pipeline do
   end
 
 
+  @spec prepare(Keyword.t) :: pipeline :: Pipeline.t
   @doc """
-  The macro:
-  <pre>
-    ctx = fork ctx do
-      Foo.foo(spam, bacon)
-      bar
-      buz(eggs)
-    end
-  </pre>
+  Create a pipeline without initiating it.
 
-  is equivalent to:
-  <pre>
-    {ctx1, frk1} = Convex.Context.fork(ctx)
-    frk1 = Foo.foo(frk1, spam, bacon)
-    {ctx2, frk2} = Convex.Context.fork(ctx1)
-    frk2 = bar(frk2)
-    {ctx3, frk3} = Convex.Context.fork(ctx2)
-    frk3 = buz(frk3, eggs)
-    ctx = Convex.Context.join(ctx3, [frk1, frk2, frk3])
-  </pre>
+  See the module documentation for more information.
+  """
+
+  defmacro prepare(blocks) do
+    {pipe, nil} = parse_pipeline(blocks)
+    quote do: unquote(pipe)
+  end
+
+
+  @spec fork(Ctx.t, Keyword.t) :: context :: Ctx.t
+  @doc """
+  Macro to fork an operation in a simple way.
+
+  See the module documentation for more information.
   """
 
   defmacro fork(ctx_ast, blocks) do
@@ -92,17 +369,12 @@ defmodule Convex.Pipeline do
   end
 
 
-  defmacro prepare(blocks) do
-    {pipe, nil} = parse_pipeline(blocks)
-    quote do: unquote(pipe)
-  end
-
-
   #===========================================================================
   # Internal Structures
   #===========================================================================
 
   defmodule ASTParserState do
+    @moduledoc false
     defstruct [
       store_keys: [],
       key: nil,

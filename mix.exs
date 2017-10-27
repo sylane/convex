@@ -10,6 +10,12 @@ defmodule Convex.Mixfile do
       start_permanent: Mix.env == :prod,
       consolidate_protocols: Mix.env != :test,
       deps: deps(),
+      name: "Convex",
+      docs: [
+        main: "Convex",
+        extras: ["README.md"],
+        assets: ["assets"],
+      ],
       test_coverage: [tool: ExCoveralls],
       preferred_cli_env: [
         "coveralls": :test,
@@ -37,6 +43,7 @@ defmodule Convex.Mixfile do
   defp deps do
     [ {:excoveralls, "~> 0.6", only: :test},
       {:dialyxir, "~> 0.5", only: [:dev], runtime: false},
+      {:ex_doc, "~> 0.14", only: :dev, runtime: false},
     ]
   end
 

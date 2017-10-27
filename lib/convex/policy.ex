@@ -1,8 +1,32 @@
 defprotocol Convex.Policy do
 
-  @fallback_to_any true
+  @moduledoc """
+  Protocol to let `Convex` print the content of the context `policy` field.
+
+  Default implementation supports string and atom values.
+  """
+
+  #===========================================================================
+  # Types
+  #===========================================================================
 
   @type t :: any
+
+  #===========================================================================
+  # Attributes
+  #===========================================================================
+
+  @fallback_to_any true
+
+
+  #===========================================================================
+  # Protocol Interface
+  #===========================================================================
+
+  @spec  describe(policy :: any) :: String.t
+  @doc """
+  This function returns a string description of the specified `policy` value.
+  """
 
   def describe(auth)
 

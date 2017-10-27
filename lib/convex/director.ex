@@ -1,11 +1,195 @@
 defmodule Convex.Director do
 
+  @moduledoc """
+  Define the behaviour a director module **MUST** implement.
+
+  Directors are used by the context/pipeline to route operations to the
+  module that knows how to perform them.
+
+  In addition, when *used*, this module instrument the defined functions
+  to simplify the writing of director modules.
+  The instrumentation allows the definition of functions `delegate`, `perform`
+  and `validate` with the following signatures:
+
+    ```
+    @spec delegate(String.t | Ctx.op) :: module
+    @spec delegate(String.t | Ctx.op, map) :: module
+    @spec delegate(Ctx.t, String.t | Ctx.op, map) :: module
+
+    @spec perform(String.t | Ctx.op)
+      :: :ok
+       | {:ok, result :: term}
+       | {:error, reason :: term}
+       | {:produce, items :: list}
+       | {:delegate, module}
+       | {:delegate, module, new_op :: Ctx.op}
+       | {:delegate, module, new_op :: Ctx.op, new_args :: map}
+       | Ctx.t
+    @spec perform(String.t | Ctx.op, map) :: module()
+      :: :ok
+       | {:ok, result :: term}
+       | {:error, reason :: term}
+       | {:produce, items :: list}
+       | {:delegate, module}
+       | {:delegate, module, new_op :: Ctx.op}
+       | {:delegate, module, new_op :: Ctx.op, new_args :: map}
+       | Ctx.t
+    @spec perform(Ctx.t, String.t | Ctx.op, map) :: module()
+      :: :ok
+       | {:ok, result :: term}
+       | {:error, reason :: term}
+       | {:produce, items :: list}
+       | {:delegate, module}
+       | {:delegate, module, new_op :: Ctx.op}
+       | {:delegate, module, new_op :: Ctx.op, new_args :: map}
+       | Ctx.t
+
+    @spec validate(String.t | Ctx.op)
+      :: :ok
+       | new_args :: map
+       | {:ok, new_args :: map}
+       | {:error, reason :: term}
+    @spec validate(String.t | Ctx.op, map) :: module()
+      :: :ok
+       | new_args :: map
+       | {:ok, new_args :: map}
+       | {:error, reason :: term}
+    @spec validate(Ctx.t, String.t | Ctx.op, map) :: module()
+      :: :ok
+       | new_args :: map
+       | {:ok, new_args :: map}
+       | {:error, reason :: term}
+    ```
+
+  In these functions arguments, the operation can be specified as a string like
+  `"foo.bar"` or `"spam.bacon.*"` and it will be converted to the proper
+  operation format (a list of tuples). Note that if the operation is stored
+  in a variable it will be so in the real format, the string is converted at
+  compilation time. Note too that the operation that can be returned from
+  the `perfrom` funtions through the `:delegate` return tuple *MUST* be a
+  list of tuple (you can use the `~o` sigil to define it as a string,
+  See `Convex.Sigils`).
+
+  The funtions `delegate` are used to define operations that should be
+  handled by another director.
+
+  The functions `validate` are used to validate operations arguments and
+  eventually modify them.
+
+  The functions `perform` are used to execute an operation and return a result
+  or an error. In adition, these functions can decide to delegate the opreation
+  to another director or produce a list of items
+  (See `Convex.Context.produce/2`).
+
+  If `validate` functions are defined, they *MUST* match every allowed
+  operations, otherwise the operation will fail with the reason
+  `:unknown_operation`. To override this behavior, you can declare the
+  module attribute `@enforce_validation false`.
+
+  If these functions need to recursively continue, they can
+  call the private functions `_validate/3` or `_perform/2` respectively.
+
+  Using this module will generate two public functions:
+
+    ```
+    @spec perform(Ctx.t, Ctx.op, args :: map) :: Ctx.t
+    @spec validate(Ctx.t, Ctx.op, args :: map)
+      :: {:ok, new_args :: map} | {:error, reason :: term}
+    ```
+
+  To debug the generated code, the `@debug true` module attribute can be
+  defined.
+
+  e.g.
+
+  ```Elixir
+  defmodule MyApp.MyDirector do
+    use Convex.Director
+    def delegate("foo.*"), do: MyApp.FooDirector
+    def delegate("bar.*"), do: MyApp.BarDirector
+    def perform("buz.double", %{value: v}) do
+      {:ok, V * 2}
+    end
+  end
+
+  defmodule MyApp.FooDirector do
+    use Convex.Director
+    def delegate("*"), do: MyApp.MyService
+    def validate("foo.spam", %{value: v}) when is_number(v), do: :ok
+    def validate("foo.bacon", %{value: v} = args) when is_binary(v) do
+      Map.put(args, :value, String.upcase(v))
+    end
+  end
+
+  defmodule MyApp.BarDirector do
+    use Convex.Director
+    def perform(%Ctx{auth: auth}, "bar.protected", args) when auth != nil, do
+      {:ok, MyApp.Protected.do_it(auth, args)}
+    end
+  end
+  ```
+
+  Roughly equivalent without *using* the director :
+
+  ```Elixir
+  defmodule MyApp.MyDirector do
+    @behaviour Convex.Director
+    def perform(ctx, [:foo | _] = op, args) do
+      MyApp.FooDirector.perform(ctx, op, args)
+    end
+    def perform(ctx, [:bar | _] = op, args) do
+      MyApp.BarDirector.perform(ctx, op, args)
+    end
+    def perform(ctx, [:buz, :double], %{value: v}) do
+      Cobnvex.Context.done(ctx,  V * 2)
+    end
+    def perform(ctx, _op, _args) do
+      Convex.Errors.unknown_operation!(ctx)
+    end
+  end
+
+  defmodule MyApp.FooDirector do
+    @behaviour Convex.Director
+    def perform(ctx, op, args) do
+      MyApp.MyService.perform(ctx, op, validate(op, args))
+    end
+    def validate(_ctx, [:foo, :spam], %{value: v} = args) when is_number(v), do: args
+    def validate(_ctx, [:foo, :bacon], %{value: v} = args) when is_binary(v) do
+      Map.put(args, :value, String.upcase(v))
+    end
+    def validate(ctx, _op, _args) do
+      Convex.Errors.unknown_operation!(ctx)
+    end
+  end
+
+  defmodule MyApp.BarDirector do
+    @behaviour Convex.Director
+    def perform(%Ctx{auth: auth} = ctx, [:bar, :protected], args) when auth != nil, do
+      Convex.Context.done(ctx, MyApp.Protected.do_it(auth, args))
+    end
+    def perform(ctx, _op, _args) do
+      Convex.Errors.unknown_operation!(ctx)
+    end
+  end
+  ```
+  """
+
+  #===========================================================================
+  # Includes
+  #===========================================================================
+
+  alias Convex.Context, as: Ctx
+
+
   #===========================================================================
   # Behaviour Definition
   #===========================================================================
 
-  @callback perform(Ctx.t, Ctx.op, map)
-    :: {:ok, Ctx.t} | {:error, reason :: term}
+  @doc """
+  Called by the context to perform an operation.
+  """
+  @callback perform(context :: Ctx.t, operation :: Ctx.op, arguments :: map)
+    :: {:ok, context :: Ctx.t} | {:error, reason :: term}
 
 
   #===========================================================================
@@ -26,6 +210,8 @@ defmodule Convex.Director do
     end
   end
 
+
+  @doc false
 
   defmacro def({:when, info1, [{:perform, info2, [ctx_ast, op_ast, arg_ast]}, when_ast]}, blocks_ast) do
     {ctx_ast, op_ast, arg_ast, body_ast}
@@ -327,10 +513,8 @@ defmodule Convex.Director do
     ctx_var = Macro.var(:ctx, __MODULE__)
     op_var = Macro.var(:op, __MODULE__)
     args_var = Macro.var(:args, __MODULE__)
-    body_ast = quote do
-      # Ugly hack to remove copmilation warnings...
-      f = fn () -> unquote(expr_ast) end
-      case f.() do
+    body_ast = quote generated: true do
+      case unquote(expr_ast) do
         %Convex.Context{} = result -> result
         :ok -> Convex.Context.done(unquote(ctx_var))
         {:ok, result} -> Convex.Context.done(unquote(ctx_var), result)
@@ -397,10 +581,8 @@ defmodule Convex.Director do
 
   defp generate_validate_body(_caller, expr_ast) do
     args_var = Macro.var(:args, __MODULE__)
-    body_ast = quote do
-      # Ugly hack to remove copmilation warnings...
-      f = fn () -> unquote(expr_ast) end
-      case f.() do
+    body_ast = quote generated: true do
+      case unquote(expr_ast) do
         result when is_map(result) -> {:ok, result}
         :ok -> {:ok, unquote(args_var)}
         {:ok, result} when is_map(result) -> {:ok, result}
@@ -437,10 +619,8 @@ defmodule Convex.Director do
     ctx_var = Macro.var(:ctx, __MODULE__)
     op_var = Macro.var(:op, __MODULE__)
     args_var = Macro.var(:args, __MODULE__)
-    body_ast = quote do
-      # Ugly hack to remove copmilation warnings...
-      f = fn () -> unquote(expr_ast) end
-      case f.() do
+    body_ast = quote generated: true do
+      case unquote(expr_ast) do
         mod when is_atom(mod) ->
           mod.perform(unquote(ctx_var), unquote(op_var), unquote(args_var))
         _ ->

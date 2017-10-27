@@ -6,6 +6,8 @@ defmodule Convex.Context.Async do
   # Includes
   #===========================================================================
 
+  use Convex.Tracer
+
   alias __MODULE__, as: This
   alias Convex.Context, as: Ctx
 
@@ -97,9 +99,29 @@ defmodule Convex.Context.Async do
   def policy_changed(_ctx, this), do: this
 
 
+  def pipeline_performed(_opts, %Ctx{state: :done} = _ctx, _this) do
+    # This will generate a warning when enabling tracing
+    cvx_trace(">>>>>>>>>>", :finished, [0, 0, 0], [:async, :done], [result: _ctx.result])
+    :ok
+  end
+
+  def pipeline_performed(_opts, %Ctx{state: :failed} = _ctx, _this) do
+    # This will generate a warning when enabling tracing
+    cvx_trace(">>>>>>>>>>", :finished, [0, 0, 0], [:async, :failed], [reason: _ctx.result])
+    :ok
+  end
+
+  def pipeline_performed(_opts, %Ctx{state: :forked, delegated: []} = _ctx, _this) do
+    # This will generate a warning when enabling tracing
+    cvx_trace(">>>>>>>>>>", :finished, [0, 0, 0], [:async, :forked], [results: _ctx.result, delegated: []])
+    :ok
+  end
+
   def pipeline_performed(_opts, _ctx, _this), do: :ok
 
 
-  def pipeline_performed!(_opts, _ctx, _this), do: :ok
+  def pipeline_performed!(opts, ctx, this) do
+    pipeline_performed(opts, ctx, this)
+  end
 
 end

@@ -1,5 +1,13 @@
 defmodule Convex.Guards do
 
+  @moduledoc """
+  This module provides functions to call another function in the context of
+  performing an operation is a safe way.
+
+  They are mostly used internally by `Convex.Context` and should be used only
+  if you exactly know what you are doing.
+  """
+
   #===========================================================================
   # Includes
   #===========================================================================
@@ -12,7 +20,16 @@ defmodule Convex.Guards do
   # API Functions
   #===========================================================================
 
-  @spec protect(Ctx.t, (() -> any)) :: {:ok, any} | {:error, Ctx.t} | no_return
+  @spec protect(context :: Ctx.t, fun :: (() -> any))
+    :: {:ok, any} | {:error, context :: Ctx.t} | no_return
+  @doc """
+  Execute a function in the context of performing an operation in a safe way.
+
+  If any exception is raised during the execution of the function, the current
+  operation will be properly terminated.
+  The exception may be re-raised in function of the configured
+  `Convex.ErrorHandler` but the current operation will be handled properly.
+  """
 
   def protect(ctx, fun) do
     try do
@@ -49,7 +66,14 @@ defmodule Convex.Guards do
   end
 
 
-  @spec ensure_discharged(Ctx.t) :: {:ok, Ctx.t} | {:error, atom}
+  @spec ensure_discharged(context :: Ctx.t)
+    :: {:ok, context :: Ctx.t} | {:error, atom}
+  @doc """
+  Validates the given context has properly been discharged, meaning that
+  current operation has been handled or delegated.
+
+  It is used as a safe guard to detect any programming error.
+  """
 
   def ensure_discharged(ctx) do
     if ctx.forked > 0 do
@@ -72,7 +96,11 @@ defmodule Convex.Guards do
   end
 
 
-  @spec ensure_discharged!(Ctx.t) :: Ctx.t | no_return
+  @spec ensure_discharged!(context :: Ctx.t) :: context :: Ctx.t | no_return
+  @doc """
+  Same as `ensure_discharged/1` but raise an error instead of returning
+  an `:error` tuple.
+  """
 
   def ensure_discharged!(ctx) do
     if ctx.forked > 0 do

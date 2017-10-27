@@ -158,17 +158,17 @@ defmodule Convex.Context.Sync do
 
 
   def pipeline_performed(_opts, %Ctx{state: :done, result: result}, _this) do
-    op_trace(">>>>>>>>>>", :finished, [0, 0, 0], [:sync, :done], [result: result])
+    cvx_trace(">>>>>>>>>>", :finished, [0, 0, 0], [:sync, :done], [result: result])
     {:ok, result}
   end
 
   def pipeline_performed(_opts, %Ctx{state: :failed, result: reason}, _this) do
-    op_trace(">>>>>>>>>>", :finished, [0, 0, 0], [:sync, :failed], [reason: reason])
+    cvx_trace(">>>>>>>>>>", :finished, [0, 0, 0], [:sync, :failed], [reason: reason])
     {:error, reason}
   end
 
   def pipeline_performed(_opts, %Ctx{state: :forked, delegated: []} = ctx, _this) do
-    op_trace(">>>>>>>>>>", :finished, [0, 0, 0], [:sync, :forked], [results: ctx.result, delegated: []])
+    cvx_trace(">>>>>>>>>>", :finished, [0, 0, 0], [:sync, :forked], [results: ctx.result, delegated: []])
     {:ok, ctx.result}
   end
 
@@ -226,7 +226,7 @@ defmodule Convex.Context.Sync do
     lvl = 1
     cpids = pending_new(delegated)
     monitored = monitored_new()
-    op_trace(">>>>>>>>>>", :waiting, [lvl, cmsg, cmsg], [:sync, :start], [results: results, delegated: delegated])
+    cvx_trace(">>>>>>>>>>", :waiting, [lvl, cmsg, cmsg], [:sync, :start], [results: results, delegated: delegated])
     {result, monitored, requeue} =
       wait(ref, lvl, cmsg, tmsg, cpids, [], mdelay, results, monitored, [])
     # Cancel timeout timer
@@ -262,21 +262,21 @@ defmodule Convex.Context.Sync do
         {cpids, monitored} = demonitor(cpids, monitored, from)
         case handle_response(lvl, cmsg, tmsg, cpids, npids, []) do
           :done ->
-            op_trace(">>>>>>>>>>", :finished, [lvl, 0, 0], [:sync, :done], [result: result])
+            cvx_trace(">>>>>>>>>>", :finished, [lvl, 0, 0], [:sync, :done], [result: result])
             {{:ok, return_result(acc, result)}, monitored, requeued}
           {:wait, lvl, cmsg, tmsg, cpids, npids} ->
-            op_trace(">>>>>>>>>>", :waiting, [lvl, cmsg, tmsg], [:sync, :done], [result: result])
+            cvx_trace(">>>>>>>>>>", :waiting, [lvl, cmsg, tmsg], [:sync, :done], [result: result])
             wait(ref, lvl, cmsg, tmsg, cpids, npids, mdelay,
                  append_result(acc, result), monitored, requeued)
         end
 
       {This, ^ref, _from, ^lvl, :failed, reason} ->
-        op_trace(">>>>>>>>>>", :finished, [lvl, cmsg, tmsg], [:sync, :failed], [reason: reason])
+        cvx_trace(">>>>>>>>>>", :finished, [lvl, cmsg, tmsg], [:sync, :failed], [reason: reason])
         # Error during pipeline processing.
         {{:error, reason}, monitored, requeued}
 
       {This, ^ref, _, _, :timeout, _} ->
-        op_trace(">>>>>>>>>>", :finished, [lvl, cmsg, tmsg], [:sync, :timeout], [], :timeout)
+        cvx_trace(">>>>>>>>>>", :finished, [lvl, cmsg, tmsg], [:sync, :timeout], [], :timeout)
         # Timeout while processing the pipeline.
         {{:error, :timeout}, monitored, requeued}
 
@@ -284,10 +284,10 @@ defmodule Convex.Context.Sync do
         {cpids, monitored} = demonitor(cpids, monitored, from)
         case handle_response(lvl, cmsg, tmsg, cpids, npids, [pid]) do
           :done ->
-            op_trace(">>>>>>>>>>", :finished, [lvl, 0, 0], [:sync, :delegated], [pid: pid])
+            cvx_trace(">>>>>>>>>>", :finished, [lvl, 0, 0], [:sync, :delegated], [pid: pid])
             {{:ok, return_result(acc)}, monitored, requeued}
           {:wait, lvl, cmsg, tmsg, cpids, npids} ->
-            op_trace(">>>>>>>>>>", :waiting, [lvl, cmsg, tmsg], [:sync, :delegated], [pid: pid])
+            cvx_trace(">>>>>>>>>>", :waiting, [lvl, cmsg, tmsg], [:sync, :delegated], [pid: pid])
             wait(ref, lvl, cmsg, tmsg, cpids, npids, mdelay,
                  acc, monitored, requeued)
         end
@@ -296,10 +296,10 @@ defmodule Convex.Context.Sync do
         {cpids, monitored} = demonitor(cpids, monitored, from)
         case handle_response(lvl, cmsg, tmsg, cpids, npids, delegated) do
           :done ->
-            op_trace(">>>>>>>>>>", :finished, [lvl, 0, 0], [:sync, :forked], [result: results, delegated: delegated])
+            cvx_trace(">>>>>>>>>>", :finished, [lvl, 0, 0], [:sync, :forked], [result: results, delegated: delegated])
             {{:ok, return_results(acc, results)}, monitored, requeued}
           {:wait, lvl, cmsg, tmsg, cpids, npids} ->
-            op_trace(">>>>>>>>>>", :waiting, [lvl, cmsg, tmsg], [:sync, :forked], [result: results, delegated: delegated])
+            cvx_trace(">>>>>>>>>>", :waiting, [lvl, cmsg, tmsg], [:sync, :forked], [result: results, delegated: delegated])
             wait(ref, lvl, cmsg, tmsg, cpids, npids, mdelay,
                  append_results(acc, results), monitored, requeued)
         end
@@ -312,7 +312,7 @@ defmodule Convex.Context.Sync do
       {:DOWN, mon_ref, :process, pid, _reason} = msg ->
         case monitored_pop_monref(monitored, pid, mon_ref) do
           {:ok, monitored, _} ->
-            op_trace(">>>>>>>>>>", :finished, [lvl, cmsg, tmsg], [:sync, :down], [pid: pid], :noproc)
+            cvx_trace(">>>>>>>>>>", :finished, [lvl, cmsg, tmsg], [:sync, :down], [pid: pid], :noproc)
             # One of our monitored process just died.
             {{:error, :noproc}, monitored, requeued}
           :error ->
@@ -324,7 +324,7 @@ defmodule Convex.Context.Sync do
 
     after
       mdelay ->
-        op_trace("MONITORING", :waiting, [lvl, cmsg, tmsg], [:sync, :monitor], [pids: cpids])
+        cvx_trace("MONITORING", :waiting, [lvl, cmsg, tmsg], [:sync, :monitor], [pids: cpids])
         # No messages received, start monitoring current level pids.
         {cpids, monitored} = monitor(cpids, monitored)
         wait(ref, lvl, cmsg, tmsg, cpids, npids, mdelay,

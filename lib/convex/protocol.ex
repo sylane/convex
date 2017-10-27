@@ -1,5 +1,36 @@
 defmodule Convex.Protocol do
 
+  @moduledoc """
+  This module implements the initiator side of the protocol to monitor the
+  state of the operation pipeline execution.
+
+  When implementing a custom context backend like `Convex.Context.Process`,
+  the process initiating the pipeline willreceive messages from  the processes
+  actually performing the operations. This module implement the state machine
+  that tracks the result of the pipeline from these messages.
+
+  The process using it should use it after perfrorming the pipeline to be
+  informed of the outcome of the pipeline. It does so by updating the protocol
+  state with the events comming from a pipeline being done, failing, being
+  delegated, being forked and the monitoring events.
+
+  The actual message format are responsability of the context callback module
+  and the process receiving them, they just need to agree on them.
+
+  As an example of implementing a custom context backend and a handler process,
+  have a look at `Convex.Context.Process` and `Convex.Handler.Process`.
+
+  the functions `handle_done/4`, `handle_failed/4`, `handle_delegated/4`,
+  `handle_forked/4` can return the following result:
+    - `{:done, result}`: The pipeline finshed with returned result.
+    - `{:failed, reason}`: The pipeline failed with returned reason.
+    - `{:continue, protocol}`: The pipeline is still processing.
+
+  Diagram of the interactions between the processes the context is traveling
+  through and the initiator process:
+  ![Operation pipeline protocol](assets/protocol.svg)
+  """
+
   #===========================================================================
   # Includes
   #===========================================================================
@@ -15,7 +46,7 @@ defmodule Convex.Protocol do
     lvl: integer,
     state: {integer, integer, list},
     pend: map,
-    acc: list,
+    acc: nil | list,
     buffer: map,
     mon: map,
   }
@@ -34,16 +65,48 @@ defmodule Convex.Protocol do
   # API Functions
   #===========================================================================
 
+  @spec new() :: protocol :: This.t
+  @spec new(Keyword.t) :: protocol :: This.t
+  @doc """
+  Creates a new protocol.
+
+  Possible options:
+    - `results`: List of results received before starting to track a context
+       due to inproc execution.
+    - `pending`: List of pid the context got delegated to before starting
+       to track a context due to inproc execution.
+  """
+
   def new(opts \\ []) do
     lvl = Keyword.get(opts, :lvl, 0)
+    results = Keyword.get(opts, :results, nil)
     pending_pids = Keyword.get(opts, :pending, [])
     pending_count = max(1, length(pending_pids))
     pending = pending_new(pending_pids)
     monitored = monitored_new()
     state = {pending_count, pending_count, []}
-    %This{lvl: lvl, state: state, pend: pending, mon: monitored}
+    %This{lvl: lvl, state: state, pend: pending, acc: results, mon: monitored}
   end
 
+
+  @spec  handle_done(from :: pid, lvl :: integer, result :: any, protocol :: This.t)
+    :: {:continue, protocol :: This.t}
+     | {:done, result :: any}
+     | {:failed, reason :: term}
+  @doc """
+  Handles messages from a context callback module when a pipeline is done.
+
+  The message is usually sent from callback module's `pipeline_done/3` function.
+
+  Arguments:
+    - `from`: the pid of the process sending the message.
+    - `lvl`: the value of the context's `depth` field. It used
+             to validate both sides are synchronized.
+    - `result`: the result of the pipeline.
+    - `protocol`: the protocol state.
+
+  See the module documentation for result description.
+  """
 
   def handle_done(from, lvl, result, %This{lvl: lvl} = this) do
     handle_events([{:done, from, result}], this)
@@ -54,6 +117,25 @@ defmodule Convex.Protocol do
   end
 
 
+  @spec  handle_failed(from :: pid, lvl :: integer, reason :: any, protocol :: This.t)
+    :: {:continue, protocol :: This.t}
+     | {:done, result :: any}
+     | {:failed, reason :: term}
+  @doc """
+  Handles messages from a context callback module when a pipeline failed.
+
+  The message is usually sent from callback module's `pipeline_failed/3` function.
+
+  Arguments:
+    - `from`: the pid of the process sending the message.
+    - `lvl`: the value of the context's `depth` field. It used
+             to validate both sides are synchronized.
+    - `reason`: the reason why the pipeline failed.
+    - `protocol`: the protocol state.
+
+  See the module documentation for result description.
+  """
+
   def handle_failed(from, lvl, reason, %This{lvl: lvl} = this) do
     handle_events([{:failed, from, reason}], this)
   end
@@ -62,6 +144,25 @@ defmodule Convex.Protocol do
     {:continue, buffer(lvl, {:failed, from, reason}, this)}
   end
 
+
+  @spec  handle_delegated(from :: pid, lvl :: integer, pid :: pid, protocol :: This.t)
+    :: {:continue, protocol :: This.t}
+     | {:done, result :: any}
+     | {:failed, reason :: term}
+  @doc """
+  Handles messages from a context callback module when a pipeline is delegated.
+
+  The message is usually sent from callback module's `pipeline_delegated/3` function.
+
+  Arguments:
+    - `from`: the pid of the process sending the message.
+    - `lvl`: the value of the context's `depth` field. It used
+             to validate both sides are synchronized.
+    - `pid`: the pid of the process the pipeline has been delegated to.
+    - `protocol`: the protocol state.
+
+  See the module documentation for result description.
+  """
 
   def handle_delegated(from, lvl, pid, %This{lvl: lvl} = this) do
     handle_events([{:delegated, from, pid}], this)
@@ -72,6 +173,27 @@ defmodule Convex.Protocol do
   end
 
 
+  @spec  handle_forked(from :: pid, lvl :: integer, results :: [any] | [],
+                       delegates :: [pid] | [], protocol :: This.t)
+    :: {:continue, protocol :: This.t}
+     | {:done, result :: any}
+     | {:failed, reason :: term}
+  @doc """
+  Handles messages from a context callback module when a pipeline is forked.
+
+  The message is usually sent from callback module's `pipeline_forked/4` function.
+
+  Arguments:
+    - `from`: the pid of the process sending the message.
+    - `lvl`: the value of the context's `depth` field. It used
+             to validate both sides are synchronized.
+    - `results`: the results of the forked pipeline.
+    - `delegates`: the pids of the processes the pipeline got delegated to.
+    - `protocol`: the protocol state.
+
+  See the module documentation for result description.
+  """
+
   def handle_forked(from, lvl, results, delegates, %This{lvl: lvl} = this) do
     handle_events([{:forked, from, results, delegates}], this)
   end
@@ -80,6 +202,20 @@ defmodule Convex.Protocol do
     {:continue, buffer(lvl, {:forked, from, results, delegates}, this)}
   end
 
+
+  @spec  handle_down(dead_pid :: pid, mon_ref :: reference, reason :: term, protocol :: This.t)
+    :: {:failed, reason :: term}
+     | {:ignored, protocol :: This.t}
+  @doc """
+  Handles monitoring messages.
+
+  The process using the protocol should send any unknown monitoring message
+  (`{:DOWN, mon_ref, :process, from, reason}` to this function.
+
+  It it returns `{:failed, reason}` it means the pipeline failed,
+  if it returns `{:ignored, proto}` the message is not intended for the protocol
+  and the caller is free to do whatever it wants with it.
+  """
 
   def handle_down(pid, mon_ref, _reason, %This{mon: mon} = this) do
     case monitored_pop_monref(mon, pid, mon_ref) do
@@ -92,10 +228,14 @@ defmodule Convex.Protocol do
   end
 
 
+  @spec start_monitoring(protocol :: This.t) :: protocol :: This.t
   @doc """
   Must be called after a caller-defined time without any new message.
   This is used to start monitoring processes and detect dead ones.
+
+  This allow delaying montoring to speedup the happy case.
   """
+
   def start_monitoring(%This{pend: pend, mon: mon} = this) do
     {pend2, mon2} = monitor(pend, mon)
     %This{this | pend: pend2, mon: mon2}

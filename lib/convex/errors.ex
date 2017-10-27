@@ -1,5 +1,11 @@
 defmodule Convex.Errors do
 
+  @moduledoc """
+  Helper module defining and raising common operation errors.
+
+  In addition it provided functions to log exceptions.
+  """
+
   #===========================================================================
   # Includes
   #===========================================================================
@@ -18,15 +24,21 @@ defmodule Convex.Errors do
   # API Functions
   #===========================================================================
 
-  @spec not_implemented!(Ctx.t) :: no_return
-  @spec not_implemented!(Ctx.t, String.t) :: no_return
+  @spec not_implemented!(context :: Ctx.t) :: no_return
+  @spec not_implemented!(context :: Ctx.t, message :: String.t) :: no_return
+  @doc """
+  Raises the error created by `not_implemented/1` or `not_implemented/2`.
+  """
 
   def not_implemented!(ctx, message \\ "not implemented"),
-  do: do_raise(not_implemented(ctx, message))
+    do: do_raise(not_implemented(ctx, message))
 
 
-  @spec not_implemented(Ctx.t) :: {:error, struct}
-  @spec not_implemented(Ctx.t, String.t) :: {:error, struct}
+  @spec not_implemented(context :: Ctx.t) :: {:error, struct}
+  @spec not_implemented(context :: Ctx.t, message :: String.t) :: {:error, struct}
+  @doc """
+  Creates an operation error for operations not yet implemented.
+  """
 
   def not_implemented(ctx, message \\ "not implemented") do
     Convex.OperationError.exception(
@@ -36,12 +48,19 @@ defmodule Convex.Errors do
   end
 
 
-  @spec unknown_operation!(Ctx.t) :: no_return
+  @spec unknown_operation!(context :: Ctx.t) :: no_return
+  @doc """
+  Raises the error created by `unknown_operation/1`.
+  """
 
-  def unknown_operation!(ctx), do: do_raise(unknown_operation(ctx))
+  def unknown_operation!(ctx),
+    do: do_raise(unknown_operation(ctx))
 
 
-  @spec unknown_operation(Ctx.t) :: {:error, struct}
+  @spec unknown_operation(context :: Ctx.t) :: {:error, struct}
+  @doc """
+  Creates an operation error for trying to perform an unknown operation.
+  """
 
   def unknown_operation(ctx) do
     desc = Format.opdesc(Ctx.operation(ctx), Ctx.arguments(ctx))
@@ -53,12 +72,19 @@ defmodule Convex.Errors do
   end
 
 
-  @spec invalid_operation!(Ctx.t, String.t) :: no_return
+  @spec invalid_operation!(context :: Ctx.t, message :: String.t) :: no_return
+  @doc """
+  Raises the error created by `invalid_operation/2`.
+  """
 
-  def invalid_operation!(ctx, msg), do: do_raise(invalid_operation(ctx, msg))
+  def invalid_operation!(ctx, msg),
+    do: do_raise(invalid_operation(ctx, msg))
 
 
-  @spec invalid_operation(Ctx.t, String.t) :: {:error, struct}
+  @spec invalid_operation(context :: Ctx.t, message :: String.t) :: {:error, struct}
+  @doc """
+  Creates an operation error for an invalid operation.
+  """
 
   def invalid_operation(ctx, msg) do
     Convex.OperationError.exception(
@@ -69,13 +95,19 @@ defmodule Convex.Errors do
 
 
 
-  @spec process_not_found!(Ctx.t, term) :: no_return
+  @spec process_not_found!(context :: Ctx.t, proc_ref :: term) :: no_return
+  @doc """
+  Raises the error created by `process_not_found/2`.
+  """
 
   def process_not_found!(ctx, proc_ref),
-  do: do_raise(process_not_found(ctx, proc_ref))
+    do: do_raise(process_not_found(ctx, proc_ref))
 
 
-  @spec process_not_found(Ctx.t, term) :: {:error, struct}
+  @spec process_not_found(context :: Ctx.t, proc_ref :: term) :: {:error, struct}
+  @doc """
+  Creates an operation error due to a process not being found.
+  """
 
   def process_not_found(ctx, proc_ref) do
     Convex.OperationError.exception(
@@ -85,15 +117,21 @@ defmodule Convex.Errors do
   end
 
 
-  @spec not_authenticated!(Ctx.t) :: no_return
-  @spec not_authenticated!(Ctx.t, String.t) :: no_return
+  @spec not_authenticated!(context :: Ctx.t) :: no_return
+  @spec not_authenticated!(context :: Ctx.t, message :: String.t) :: no_return
+  @doc """
+  Raises the error created by `not_authenticated/1` or `not_authenticated/2`.
+  """
 
   def not_authenticated!(ctx, msg \\ "not authenticated"),
-  do: do_raise(not_authenticated(ctx, msg))
+    do: do_raise(not_authenticated(ctx, msg))
 
 
-  @spec not_authenticated(Ctx.t) :: {:error, struct}
-  @spec not_authenticated(Ctx.t, String.t) :: {:error, struct}
+  @spec not_authenticated(context :: Ctx.t) :: {:error, struct}
+  @spec not_authenticated(context :: Ctx.t, message :: String.t) :: {:error, struct}
+  @doc """
+  Creates an operation error due to the context not being authenticated.
+  """
 
   def not_authenticated(ctx, message \\ "not authenticated") do
     Convex.OperationError.exception(
@@ -103,15 +141,21 @@ defmodule Convex.Errors do
   end
 
 
-  @spec not_attached!(Ctx.t) :: no_return
-  @spec not_attached!(Ctx.t, String.t) :: no_return
+  @spec not_attached!(context :: Ctx.t) :: no_return
+  @spec not_attached!(context :: Ctx.t, message :: String.t) :: no_return
+  @doc """
+  Raises the error created by `not_attached/1` or `not_attached/2`.
+  """
 
   def not_attached!(ctx, msg \\ "not attached"),
-  do: do_raise(not_attached(ctx, msg))
+    do: do_raise(not_attached(ctx, msg))
 
 
-  @spec not_attached(Ctx.t) :: {:error, struct}
-  @spec not_attached(Ctx.t, String.t) :: {:error, struct}
+  @spec not_attached(context :: Ctx.t) :: {:error, struct}
+  @spec not_attached(context :: Ctx.t, message :: String.t) :: {:error, struct}
+  @doc """
+  Creates an operation error due the context not being attached to any session.
+  """
 
   def not_attached(ctx, message \\ "not attached") do
     Convex.OperationError.exception(
@@ -122,13 +166,19 @@ defmodule Convex.Errors do
 
 
 
-  @spec already_authenticated!(Ctx.t, Types.auth) :: no_return
+  @spec already_authenticated!(context :: Ctx.t, curr_auth :: Auth.t) :: no_return
+  @doc """
+  Raises the error created by `already_authenticated/2`.
+  """
 
   def already_authenticated!(ctx, auth),
-  do: do_raise(already_authenticated(ctx, auth))
+    do: do_raise(already_authenticated(ctx, auth))
 
 
-  @spec already_authenticated(Ctx.t, Types.auth) :: {:error, struct}
+  @spec already_authenticated(context :: Ctx.t, curr_auth :: Auth.t) :: {:error, struct}
+  @doc """
+  Creates an operation error due the context being already authenticated.
+  """
 
   def already_authenticated(ctx, auth) do
     Convex.OperationError.exception(
@@ -139,12 +189,19 @@ defmodule Convex.Errors do
 
 
 
-  @spec already_attached!(Ctx.t, Types.sess) :: no_return
+  @spec already_attached!(context :: Ctx.t, curr_sess :: Sess.t) :: no_return
+  @doc """
+  Raises the error created by `already_attached/2`.
+  """
 
-  def already_attached!(ctx, sess), do: do_raise(already_attached(ctx, sess))
+  def already_attached!(ctx, sess),
+    do: do_raise(already_attached(ctx, sess))
 
 
-  @spec already_attached(Ctx.t, Types.sess) :: {:error, struct}
+  @spec already_attached(context :: Ctx.t, curr_sess :: Sess.t) :: {:error, struct}
+  @doc """
+  Creates an operation error due the context being already attached to a session.
+  """
 
   def already_attached(ctx, sess) do
     Convex.OperationError.exception(
@@ -154,14 +211,21 @@ defmodule Convex.Errors do
   end
 
 
-  @spec forbidden!(Ctx.t) :: no_return
-  @spec forbidden!(Ctx.t, String.t) :: no_return
+  @spec forbidden!(context :: Ctx.t) :: no_return
+  @spec forbidden!(context :: Ctx.t, message :: String.t) :: no_return
+  @doc """
+  Raises the error created by `forbidden/2`.
+  """
 
-  def forbidden!(ctx, msg \\ "access forbidden"), do: do_raise(forbidden(ctx, msg))
+  def forbidden!(ctx, msg \\ "access forbidden"),
+    do: do_raise(forbidden(ctx, msg))
 
 
-  @spec forbidden(Ctx.t) :: {:error, struct}
-  @spec forbidden(Ctx.t, String.t) :: {:error, struct}
+  @spec forbidden(context :: Ctx.t) :: {:error, struct}
+  @spec forbidden(context :: Ctx.t, message :: String.t) :: {:error, struct}
+  @doc """
+  Creates an error due the operation execution being forbidden.
+  """
 
   def forbidden(ctx, message \\ "access forbidden") do
     Convex.OperationError.exception(
@@ -171,14 +235,21 @@ defmodule Convex.Errors do
   end
 
 
-  @spec internal!(Ctx.t) :: no_return
-  @spec internal!(Ctx.t, String.t) :: no_return
+  @spec internal!(context :: Ctx.t) :: no_return
+  @spec internal!(context :: Ctx.t, message :: String.t) :: no_return
+  @doc """
+  Raises the error created by `internal/2`.
+  """
 
-  def internal!(ctx, msg \\ "internal error"), do: do_raise(internal(ctx, msg))
+  def internal!(ctx, msg \\ "internal error"),
+    do: do_raise(internal(ctx, msg))
 
 
-  @spec internal(Ctx.t) :: {:error, struct}
-  @spec internal(Ctx.t, String.t) :: {:error, struct}
+  @spec internal(context :: Ctx.t) :: {:error, struct}
+  @spec internal(context :: Ctx.t, message :: String.t) :: {:error, struct}
+  @doc """
+  Creates an operation error due some internal error.
+  """
 
   def internal(ctx, message \\ "internal error") do
     Convex.OperationError.exception(
@@ -187,6 +258,15 @@ defmodule Convex.Errors do
       |> wrap_in_error
   end
 
+
+  @spec log_exception(message :: nil | String.t, error :: any, trace :: nil | list) :: :ok
+  @spec log_exception(message :: nil | String.t, error :: any, trace :: nil | list, tags :: Keyword.t) :: :ok
+  @doc """
+  Log and exception trying to extract the most information out of it.
+
+  A custom message and an external stack trace can be specified.
+  Extra tags can be given to log some context information.
+  """
 
   def log_exception(msg, error, trace, tags \\ []) do
     m = message(error)
@@ -206,6 +286,8 @@ defmodule Convex.Errors do
   end
 
 
+  @doc false
+
   def log_trace({_, [{m, f, _, _} | _] = trace}) when is_atom(m) and is_atom(f) do
     Logger.debug("stacktrace:\n#{Exception.format_stacktrace(trace)}")
   end
@@ -213,16 +295,21 @@ defmodule Convex.Errors do
   def log_trace(_), do: :ok
 
 
+  @doc false
+
   def stacktrace({_, [{m, f, _, _} | _] = trace}) when is_atom(m) and is_atom(f), do: trace
 
   def stacktrace(_), do: nil
 
+
+  @doc false
 
   def error({error, [{m, f, _, _} | _]}) when is_atom(m) and is_atom(f), do: error
 
   def error(error), do: error
 
 
+  @doc false
   def class({error, [{m, f, _, _} | _]}) when is_atom(m) and is_atom(f), do: class(error)
 
   def class(%{__struct__: struct}), do: struct
@@ -230,6 +317,7 @@ defmodule Convex.Errors do
   def class(_), do: :unknown
 
 
+  @doc false
   def reason({error, [{m, f, _, _} | _]}) when is_atom(m) and is_atom(f), do: reason(error)
 
   def reason(%Error{reason: reason}), do: reason
@@ -245,6 +333,7 @@ defmodule Convex.Errors do
   def reason(reason), do: reason
 
 
+  @doc false
   def message({error, [{m, f, _, _} | _]}) when is_atom(m) and is_atom(f), do: message(error)
 
   def message(%{__exception__: true, __struct__: struct, message: nil}), do: to_string(struct)

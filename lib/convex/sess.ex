@@ -1,10 +1,36 @@
 defprotocol Convex.Sess do
 
-  @fallback_to_any true
+  @moduledoc """
+  Protocol to let `Convex` print the content of the context `sess` field.
+
+  Default implementation supports string and atom values.
+  """
+
+  #===========================================================================
+  # Types
+  #===========================================================================
 
 	@type t :: any
 
-	def describe(auth)
+
+  #===========================================================================
+  # Attributes
+  #===========================================================================
+
+  @fallback_to_any true
+
+
+  #===========================================================================
+  # Protocol Interface
+  #===========================================================================
+
+
+  @spec describe(sess :: any) :: String.t
+  @doc """
+  This function returns a string description of the specified `sess` value.
+  """
+
+	def describe(sess)
 
 end
 
