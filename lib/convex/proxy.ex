@@ -140,6 +140,12 @@ defmodule Convex.Proxy do
   @spec post(context :: Ctx.t, message :: term, proxy :: This.t) :: Ctx.t
   @doc """
   Posts a message to bound peer service with given context.
+
+  When posting a message in an operation handler where a context is available,
+  this function should be used. This allow the proxy backend to include
+  tracking information so the message can be associated to the operation
+  pipeline. See `Convex.Context.Process` and `Convex.Proxy.Process` for an
+  example.
   """
 
   def post(ctx, msg, %This{mod: mod, sub: sub}) do

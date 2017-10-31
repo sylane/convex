@@ -2,7 +2,13 @@ defmodule Convex do
 
   @moduledoc """
   Convex is a library to add a layer of comunication between multiple
-  services without any of these services to have to know each others.
+  services without any of these services having to know each others.
+
+  ## Concept
+
+
+
+  ## Configuration
 
   The minimal configuration for an application using Convex should specify
   the `director` option:

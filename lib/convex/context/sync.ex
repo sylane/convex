@@ -1,5 +1,45 @@
 defmodule Convex.Context.Sync do
 
+  @moduledoc """
+  Callback module for `Convex.Context` providing synchronous behaviour.
+
+  When used with an operation pipeline, performing the pipeline will block
+  until all operations are done or any of them fail.
+
+  When using `perform` it will return a tuple `{:ok, result}`
+  or `{:error, reason}`, and when using `perform!` it will return the result
+  directly or raise an error.
+
+  **e.g.**
+
+    ```Elixir
+    {:ok, result} = perform Convex.Context.Sync.new() do
+      some.operation ^args
+    end
+
+    result} = perform! Convex.Context.Sync.new() do
+      some.operation ^args
+    end
+    ```
+
+  If you need to do something synchrnously from inside an operation handler
+  and don't want to lose the authentication/session/policy/assigned values and
+  tags you can recast the current context:
+
+    ```Elixir
+    perform Convex.Context.Sync.recast(current_context) do
+      some.operation ^args
+    end
+    ```
+
+  If you want to enable the ability to bind the context in the pipeline
+  operation handlers, you can specify the `binder` option. It is a function
+  taking the context as parameter and should return a `Convex.Proxy`.
+
+  """
+
+  @behaviour Convex.Context
+
   #===========================================================================
   # Includes
   #===========================================================================
@@ -42,10 +82,37 @@ defmodule Convex.Context.Sync do
   # API Functions
   #===========================================================================
 
+  @spec new() :: context :: Ctx.t
+  @spec new(options :: Keyword.t) :: context :: Ctx.t
+  @doc """
+  Creates a new synchronous context.
+
+  In addition of `Convex.Context.new/2` options, the following options
+  are supported:
+
+    - `binder`: a function taking a context and returning a `Convex.Proxy`.
+        enable the ability to bind the context in the operation handlers.
+  """
+
   def new(opts \\ []) do
     Ctx.new(This, opts)
   end
 
+
+  @spec recast(base_context :: Ctx.t) :: context :: Ctx.t
+  @spec recast(base_context :: Ctx.t, options :: Keyword.t) :: context :: Ctx.t
+  @doc """
+  Creates an synchronous context out of another context.
+
+  Keeps the authentication, session, policy, assigned values and tags form
+  the given context.
+
+  In addition of `Convex.Context.recast/2` options, the following options
+  are supported:
+
+    - `binder`: a function taking a context and returning a `Convex.Proxy`.
+        enable the ability to bind the context in the operation handlers.
+  """
 
   def recast(ctx, opts \\ [])
 
@@ -62,6 +129,7 @@ defmodule Convex.Context.Sync do
   # Behaviour Convex.Context Callback Functions
   #===========================================================================
 
+  @doc false
   def init(opts) do
     binder = Keyword.get(opts, :binder)
     ctx_opts = Keyword.take(opts, @opt_keys)
@@ -69,20 +137,25 @@ defmodule Convex.Context.Sync do
   end
 
 
+  @doc false
   def prepare_recast(assigns, _opts), do: assigns
 
 
+  @doc false
   def format_ident(ident, _this), do: ident
 
 
+  @doc false
   def bind(_ctx, %This{binder: nil} = this), do: {:error, this, :not_implemented}
 
   def bind(ctx, %This{binder: binder} = this), do: {:ok, this, binder.(ctx)}
 
 
+  @doc false
   def operation_done(_op, result, _ctx, this), do: {this, result}
 
 
+  @doc false
   def operation_failed(_op, reason, nil, _ctx, this), do: {this, reason}
 
   def operation_failed(_op, reason, debug, _ctx, this) do
@@ -90,6 +163,7 @@ defmodule Convex.Context.Sync do
   end
 
 
+  @doc false
   def pipeline_fork(%Ctx{depth: 0}, %This{pid: nil} = this) do
     # The pipeline is forked for the first time.
     # Because multiple forks could get delegate we need to prepare right away
@@ -101,9 +175,11 @@ defmodule Convex.Context.Sync do
   def pipeline_fork(_ctx, this), do: {this, this}
 
 
+  @doc false
   def pipeline_join(_forked_subs, _ctx, this), do: this
 
 
+  @doc false
   def pipeline_delegate(%Ctx{depth: 0}, %This{pid: nil} = this) do
     # The context is being delegated to another process for the first time.
     this2 = prepare(this)
@@ -113,6 +189,7 @@ defmodule Convex.Context.Sync do
   def pipeline_delegate(_ctx, this), do: {this, this}
 
 
+  @doc false
   def pipeline_failed(_reason, %Ctx{depth: 0}, this), do: this
 
   def pipeline_failed(reason, ctx, %This{pid: recip, ref: ref} = this) do
@@ -122,6 +199,7 @@ defmodule Convex.Context.Sync do
   end
 
 
+  @doc false
   def pipeline_forked(_results, _delegated, %Ctx{depth: 0}, this), do: this
 
   def pipeline_forked(results, delegated, ctx, this) do
@@ -133,6 +211,7 @@ defmodule Convex.Context.Sync do
   end
 
 
+  @doc false
   def pipeline_done(_result, %Ctx{depth: 0}, this), do: this
 
   def pipeline_done(result, ctx, %This{pid: recip, ref: ref} = this) do
@@ -142,6 +221,7 @@ defmodule Convex.Context.Sync do
   end
 
 
+  @doc false
   def pipeline_delegated(_pid, %Ctx{depth: 0}, this), do: this
 
   def pipeline_delegated(pid, ctx, %This{pid: recip, ref: ref} = this) do
@@ -151,12 +231,15 @@ defmodule Convex.Context.Sync do
   end
 
 
+  @doc false
   def context_changed(_ctx, this), do: this
 
 
+  @doc false
   def policy_changed(_ctx, this), do: this
 
 
+  @doc false
   def pipeline_performed(_opts, %Ctx{state: :done, result: result}, _this) do
     cvx_trace(">>>>>>>>>>", :finished, [0, 0, 0], [:sync, :done], [result: result])
     {:ok, result}
@@ -186,6 +269,7 @@ defmodule Convex.Context.Sync do
   end
 
 
+  @doc false
   def pipeline_performed!(opts, ctx, this) do
     case pipeline_performed(opts, ctx, this) do
       {:ok, result} -> result
