@@ -6,7 +6,7 @@ defmodule Convex.Director do
   Directors are used by the context/pipeline to route operations to the
   module that knows how to perform them.
 
-  In addition, when *used*, this module instrument the defined functions
+  In addition, when `use`d, this module instruments the defined functions
   to simplify the writing of director modules.
   The instrumentation allows the definition of functions `delegate`, `perform`
   and `validate` with the following signatures:

@@ -305,7 +305,7 @@ defmodule Convex.Pipeline do
   end
 
 
-  @spec perform(Ctx.t | Keyword.t, Keyword.t) :: result :: any
+  @spec perform!(Ctx.t | Keyword.t, Keyword.t) :: result :: any
   @doc """
   Macro to perform a pipeline of operation.
 

@@ -4,14 +4,14 @@ defmodule Convex.Context do
   This defines the structure that is passed around to perform the operation
   pipeline, and the functions to interact with it.
 
-  The context encapsulate the pipeline operations and the state of the execution.
+  The context encapsulates the pipeline operations and the state of the execution.
   It uses a callback module to alter its behavior in function of the initiator
   requirments.
 
   The context structure implements the `Access` protocol for its *public*
   fields `auth`, `sess` and `policy`.
   These fields are opaque for `Convex`, they are defined by the application.
-  The only requirment is for the application to ensure these values supports
+  The only requirment is for the application to ensure these values support
   the `Convex.Auth`, `Convex.Sess` and `Convex.Policy` protocols respectively.
 
 
@@ -47,8 +47,8 @@ defmodule Convex.Context do
   policy, assigned values and tags. To keep this information the `recast/2`
   or `recast/3` function can be used to create a new context with a different
   callback module but keeping all the meta-data. Even simpler would be to use
-  the callback module helper functions like `Convex.Context.Sync.recast/1'
-  or `Convex.Context.Sync.recast/2':
+  the callback module helper functions like `Convex.Context.Sync.recast/1`
+  or `Convex.Context.Sync.recast/2`:
 
     ```Elixir
     result = perform! with: Convex.Context.Sync.recast(ctx) do
@@ -77,8 +77,8 @@ defmodule Convex.Context do
   `Convex.Pipeline.fork/2` macro or simply by producing multiple results
   calling `Convex.Context.produce/2` or `Convex.Context.map/3`.
 
-  When an operation is forked, the following of operations in the pipelines are
-  performed **for each** results.
+  When an operation is forked, the following operations in the pipelines are
+  performed **for each** of the produced results.
 
   e.g.
 
@@ -139,21 +139,21 @@ defmodule Convex.Context do
   it supports `Convex.Auth` protocol.
 
   Another *public* field related to authentication is `policy`. The policy is
-  some application-defined data supporting `Convex.Policy` protoc9ol that could
+  some application-defined data supporting `Convex.Policy` protocol that could
   describe any access policy for the authenticated entity.
   The main difference between `auth` and `policy` is that policy could change
   while `auth` is not supposed to.
 
-  One of the difference between this data and the tags and assigned values
+  One of the differences between this data and the tags and assigned values
   is that when updating it the context is considered to
   have changed in a way the initiator of the pipeline might be interested in.
-  This mean that all the function modifying this data will trigger the
-  callback module callback function `context_changed/2` to be called.
+  This means that all the functions modifying this data will trigger the
+  callback module callback function `c:context_changed/2` to be called.
   The callback module is then responsible to send these changes to the
   initiator if this is the desired behavior (See `Convex.Context.Process`).
 
-  For the same reasons, if the policy changes the context callbak module
-  function `policy_changed/2` will be cxalled.
+  For the same reasons, if the policy changes in the context, the callbak
+  module function `c:policy_changed/2` will be called.
 
 
   #### Pre-Authenticate
@@ -292,13 +292,13 @@ defmodule Convex.Context do
 
   ## Operation Handling
 
-  An operation pipeline is a list of operation, each with there arguments and
-  how the result must be stored.
+  An operation pipeline is a list of operations, each with their arguments and
+  a recipe how the result should be stored.
 
-  For each operations, the context use the director passed as option or the
-  globaly configure one (See `new/2` and `Convex.Config`) to route itself
+  For each operations, the context uses the director passed as option or the
+  globally configured one (See `new/2` and `Convex.Config`) to route itself
   to the service providing the operation. The service can make the pipeline
-  progress in multiple ways:
+  progress in one of the following ways:
 
 
   ### Successful Operation
@@ -313,9 +313,9 @@ defmodule Convex.Context do
   When an operation is done, the context store the result in the context
   possibly unpacking it into multiple stored values and continue to the next
   operation in the pipeline. For that it pops the next operation from the
-  pipeline and call the director to route the next operation.
+  pipeline and calls the director to route the next operation.
 
-  If the operation was the last one, the pipeline is terminated.
+  If the operation was the last one in the pipeline, the pipeline is terminated.
 
 
   ### Failed Operation
@@ -327,7 +327,7 @@ defmodule Convex.Context do
     Convex.Context.failed(ctx, :some_error)
     ```
 
-  When any operation fail, the pipeline is terminated.
+  As soon as one of the operations fails, the pipeline is terminated.
 
 
   ### Delegated Operation
