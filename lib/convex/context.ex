@@ -338,8 +338,8 @@ defmodule Convex.Context do
   If the process the operation is to be delegated to is already running,
   the service needs to call the function `delegate/2`. It will return a new
   context to be passed to the process the operation is delegated to so it can
-  continue the operation processing. The means to send the new context
-  to the process is responsability of the service:
+  continue the operation processing. It is the responsibility of the service
+  to send the new context to the process.
 
     ```Elixir
     {ctx, delegated_ctx} = Convex.Context.delegate(ctx, pid)
@@ -348,7 +348,7 @@ defmodule Convex.Context do
 
     ```
 
-  If a new process needs to be spawn, and the new context must be passed
+  If a new process needs to be spawned, and the new context must be passed
   before even knowing the pid, the delegation **MUST** be done in two
   steps:
 
@@ -382,21 +382,20 @@ defmodule Convex.Context do
   ### Forked Execution
 
   An operation can be forked to return multiple results that will be processed
-  independently fy the further operations in the pipeline.
+  independently by the further operations in the pipeline.
 
   This can be done in different ways:
 
   #### Explicit Forking
 
-  Every explicit forks must **ALWAYS** be joined back:
-
+  Every explicit fork must **ALWAYS** be joined back:
 
     ```Elixir
       {ctx, forked_ctx1} = Convex.Context.fork(ctx)
       forked_ctx1 = do_something(forked_ctx1, :foo)
       {ctx, forked_ctx2} = Convex.Context.fork(ctx)
-      forked_ctx1 = do_something_else(forked_ctx2, :bar)
-      Convex.Context.join(ctx, [forked_ctx1, forked_ctx1])
+      forked_ctx2 = do_something_else(forked_ctx2, :bar)
+      Convex.Context.join(ctx, [forked_ctx1, forked_ctx2])
     ```
 
   This will make the operation generate two results.
@@ -449,6 +448,8 @@ defmodule Convex.Context do
   use Convex.Tracer
 
   require Logger
+
+  alias __MODULE__, as: This
 
   alias Convex.Config
   alias Convex.Context, as: Ctx
@@ -540,7 +541,7 @@ defmodule Convex.Context do
   It receives the extra options passed to `recast/3` and return the updated
   assigned values that will be used with the new recasted context.
 
-  Called by `recast/1` and `recast/2`.
+  Called by `recast/2` and `recast/3`.
   """
   @callback prepare_recast(assigns :: map, options :: Keyword.t)
     :: assigns :: map
@@ -551,8 +552,8 @@ defmodule Convex.Context do
   Allow the callback module to customize the way the context will look
   when using the logging functions.
 
-  Called by `new/1`, `new/2`, `recast/1`, `recast/2`, `clone/1`, `clone/2`,
-  `authenticate/3`, `attache/2` and `restore/4`.
+  Called by `new/1`, `new/2`, `recast/2`, `recast/3`, `clone/1`, `clone/2`,
+  `authenticate/3`, `attach/2` and `restore/4`.
 
   """
   @callback format_ident(binary, state :: any)
@@ -678,15 +679,15 @@ defmodule Convex.Context do
   """
   @callback pipeline_performed(options :: Keyword.t, context :: This.t,
                                state :: any)
-    :: any
+    :: {:ok, any} | {:error, any}
 
   @doc """
-  Same as callback `pipeline_performed/2` but errors will be raised
+  Same as callback `c:pipeline_performed/3` but errors will be raised
   as exceptions and result will be returned directly.
   """
   @callback pipeline_performed!(options :: Keyword.t, context :: This.t,
                                 state :: any)
-    :: any
+    :: any | no_return()
 
 
   #===========================================================================
@@ -703,7 +704,7 @@ defmodule Convex.Context do
   behaviour.
 
   Options `director` and `tags` will be handled by the context, any other
-  options will be passed to the callback module `init/1` function.
+  options will be passed to the callback module `c:init/1` function.
 
     - `director`:
 
@@ -759,7 +760,7 @@ defmodule Convex.Context do
 
   @spec value(context :: This.t) :: any
   @doc """
-  Returns the context previous operation result.
+  Returns the result of the last context operation.
   """
 
   def value(ctx), do: ctx.result
@@ -773,9 +774,9 @@ defmodule Convex.Context do
   of the current meta-data.
 
   Some of the assigned values MAY be changed by the current backend
-  before the switch to the new backend (through `prepare_recast/2` callback).
+  before the switch to the new backend (through `c:prepare_recast/2` callback).
 
-  This should be mostly used from the callback modules `recast` helper
+  This should be mostly used from the callback module's `recast` helper
   functions like `Convex.Context.Sync.recast/1`, `Convex.Context.Sync.recast/2`,
   `Convex.Context.Async.recast/1` or `Convex.Context.Async.recast/2`
   """
@@ -796,7 +797,7 @@ defmodule Convex.Context do
 
     - `tags`: tags to be merged into the given context tags.
 
-  The callback module `init` function will be called again with the extra
+  The callback module's `c:init/1` function will be called again with the extra
   options.
   """
 
@@ -865,15 +866,14 @@ defmodule Convex.Context do
   end
 
 
-  @spec perform(context :: This.t, pipeline :: Pipeline.t) :: context :: This.t
-  @spec perform(context :: This.t, pipeline :: Pipeline.t, options ::  Keyword.t)
-    :: context :: This.t
+  @spec perform(context :: This.t, pipeline :: Pipeline.t, options :: Keyword.t)
+    :: {:ok, result :: any()} | {:error, reason :: any()}
   @doc """
   Performs a pipeline without exception.
 
   The pipeline could be created using `Convex.Pipeline.prepare/1`.
 
-  The options are passed to the callback module function `pipeline_performed/3`.
+  The options are passed to the callback module function `c:pipeline_performed/3`.
   """
 
   def perform(ctx, pipeline, opts \\ [])
@@ -891,16 +891,15 @@ defmodule Convex.Context do
   end
 
 
-  @spec perform!(context :: This.t, pipeline :: Pipeline.t) :: context :: This.t
-  @spec perform!(context :: This.t, pipeline :: Pipeline.t, options: Keyword.t)
-    :: context :: This.t
+  @spec perform!(context :: This.t, pipeline :: Pipeline.t, options :: Keyword.t)
+    :: (result :: any()) | no_return()
   @doc """
   Performs a pipeline raising an exception in case of failure and returning
   any possible result directly.
 
   The pipeline could be created using `Convex.Pipeline.prepare/1`.
 
-  The options are passed to the callback module function `pipeline_performed!/3`.
+  The options are passed to the callback module function `c:pipeline_performed!/3`.
   """
 
   def perform!(ctx, pipeline, opts \\ [])
@@ -1059,10 +1058,10 @@ defmodule Convex.Context do
   The base context can be forked multiple times.
 
   The forked context can be used the same way the base context could have
-  been used, it can makr the operation as done or failed, it can delegate
+  been used, it can make the operation as done or failed, it can delegate
   it to another process or even fork it again.
 
-  after calling this function, the other function `Convex.Context.join/2`
+  After calling this function, the corresponding `Convex.Context.join/2`
   **MUST** be called with all the forked contexts.
   """
 
@@ -1218,7 +1217,7 @@ defmodule Convex.Context do
 
   If the authentication data was already set this function will raise an exception.
 
-  The callback module `context_changed/2` will be called allowing it to forward
+  The callback module's `c:context_changed/2` will be called allowing it to forward
   any changes to interest party.
   """
 
@@ -1248,7 +1247,7 @@ defmodule Convex.Context do
   If the context is already attached to a session this function will raise
   an exception.
 
-  The callback module `context_changed/2` will be called allowing it to forward
+  The callback module's `c:context_changed/2` will be called allowing it to forward
   any changes to interest party.
   """
 
@@ -1305,12 +1304,12 @@ defmodule Convex.Context do
   @doc """
   Updates the context policy.
 
-  The policy must implements protocol `Convex.Context.Policy`.
+  The policy must implements protocol `Convex.Policy`.
 
   If the context is not authenticated, this call as no effect.
 
   The policy can be called multiple times and every times the callback module
-  function `policy_changed/2` will be called allowing it to forward
+  function `c:policy_changed/2` will be called allowing it to forward
   any changes to interest party.
   """
 
@@ -1336,7 +1335,7 @@ defmodule Convex.Context do
   @spec fetch_assigned(context :: This.t, key :: any)
     :: :error | {:ok, value :: any}
   @doc """
-  Fetches an assigned falue.
+  Fetches an assigned value.
   """
 
   def fetch_assigned(%Ctx{assigns: assigns}, key) do
@@ -1347,7 +1346,7 @@ defmodule Convex.Context do
   @spec get_assigned(context :: This.t, key :: any) :: any
   @spec get_assigned(context :: This.t, key :: any, default :: any) :: any
   @doc """
-  Gets an assigned falue. If the key has not be assigned it returns `nil`
+  Gets an assigned value. If the key has not be assigned it returns `nil`
   or the given default value.
   """
 
