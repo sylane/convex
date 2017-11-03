@@ -679,7 +679,7 @@ defmodule Convex.Context do
   """
   @callback pipeline_performed(options :: Keyword.t, context :: This.t,
                                state :: any)
-    :: {:ok, any} | {:error, any}
+    :: any
 
   @doc """
   Same as callback `c:pipeline_performed/3` but errors will be raised
@@ -687,7 +687,7 @@ defmodule Convex.Context do
   """
   @callback pipeline_performed!(options :: Keyword.t, context :: This.t,
                                 state :: any)
-    :: any | no_return()
+    :: any
 
 
   #===========================================================================
@@ -867,7 +867,7 @@ defmodule Convex.Context do
 
 
   @spec perform(context :: This.t, pipeline :: Pipeline.t, options :: Keyword.t)
-    :: {:ok, result :: any()} | {:error, reason :: any()}
+    :: any
   @doc """
   Performs a pipeline without exception.
 
@@ -892,7 +892,7 @@ defmodule Convex.Context do
 
 
   @spec perform!(context :: This.t, pipeline :: Pipeline.t, options :: Keyword.t)
-    :: (result :: any()) | no_return()
+    :: any
   @doc """
   Performs a pipeline raising an exception in case of failure and returning
   any possible result directly.
