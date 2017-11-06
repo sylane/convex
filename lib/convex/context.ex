@@ -450,8 +450,8 @@ defmodule Convex.Context do
 
   require Logger
 
+  alias __MODULE__, as: Ctx
   alias Convex.Config
-  alias Convex.Context, as: Ctx
   alias Convex.Guards
   alias Convex.Proxy
   alias Convex.Pipeline
@@ -567,7 +567,8 @@ defmodule Convex.Context do
   Called by `bind/1`.
   """
   @callback bind(context :: This.t, state :: any)
-    :: Proxy.t
+    :: {:ok, state :: any, Proxy.t}
+     | {:error, state :: any, reason :: any}
 
 
   @doc """
@@ -921,8 +922,10 @@ defmodule Convex.Context do
   @spec resume(context :: This.t, operation :: This.op, args :: map)
     :: context :: This.t
   @doc """
-  Resumes the execution of an operation. Useful if the operation was moved
-  around to another node and should be resumed there.
+  Resumes the execution of an operation.
+  Usefull for bootstraping the operation routing after the operation
+  got delegated. It is a shorthand to using the configured director
+  directly to route the operation. It resume the routing of the operation.
   """
 
   def resume(%Ctx{dir: dir} = ctx, op, args), do: dir.perform(ctx, op, args)
@@ -1356,7 +1359,7 @@ defmodule Convex.Context do
   end
 
 
-  @spec assign(context :: This.t, Keyword.t) :: context :: This.t
+  @spec assign(context :: This.t, Keyword.t | map) :: context :: This.t
   @doc """
   Assigns multiple key-value pairs to the context.
   """

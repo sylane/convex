@@ -18,8 +18,7 @@ defmodule Convex.GenServer do
   #===========================================================================
 
   @type timeout_arg :: :infinity | integer | ((state :: map) -> integer)
-  @type server_name :: atom | {:global, term} | {:via, module, term}
-  @type server_spec :: pid | server_name | {atom, node}
+  @type server_spec :: pid | atom
 
 
   #===========================================================================
