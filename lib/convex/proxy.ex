@@ -97,7 +97,7 @@ defmodule Convex.Proxy do
   @doc """
   Create a new proxy with given callback module and options.
 
-  The options will be given as-is to the callback module.
+  The options will be given as-is to the callback module's `c:init/1` callback.
   """
 
   def new(mod, opts \\ []) do

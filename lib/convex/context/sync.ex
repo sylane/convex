@@ -17,7 +17,7 @@ defmodule Convex.Context.Sync do
       some.operation ^args
     end
 
-    result} = perform! Convex.Context.Sync.new() do
+    result = perform! Convex.Context.Sync.new() do
       some.operation ^args
     end
     ```
