@@ -118,6 +118,15 @@ defmodule Convex.GenServer do
   defp safe_perform(ctx, op, args, %{__struct__: mod} = state) do
     handle_fun = fn -> mod.handle_operation(ctx, op, args, state) end
     case Guards.protect ctx, handle_fun do
+      {:ok, {:ok, state2, result}} ->
+        Ctx.done(ctx, result)
+        {:ok, state2}
+      {:ok, {:error, state2, reason}} ->
+        Ctx.failed(ctx, reason)
+        {:ok, state2}
+      {:ok, {:produce, state2, values}} ->
+        Ctx.produce(ctx, values)
+        {:ok, state2}
       {:ok, {state2, ctx2}} ->
         # Checks the context has been handled properly
         Guards.ensure_discharged!(ctx2)
