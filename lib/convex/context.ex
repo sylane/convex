@@ -449,10 +449,8 @@ defmodule Convex.Context do
 
   require Logger
 
-  alias __MODULE__, as: This
-
+  alias __MODULE__, as: Ctx
   alias Convex.Config
-  alias Convex.Context, as: Ctx
   alias Convex.Guards
   alias Convex.Proxy
   alias Convex.Pipeline
@@ -567,8 +565,9 @@ defmodule Convex.Context do
 
   Called by `bind/1`.
   """
-  @callback bind(context :: This.t, state :: any)
-    :: Proxy.t
+  @callback bind(context :: Ctx.t, state :: any)
+    :: {:ok, state :: any, Proxy.t}
+     | {:error, state :: any, reason :: any}
 
 
   @doc """
@@ -577,7 +576,7 @@ defmodule Convex.Context do
   Called by `done/1`, `done/2` and `produce/2`.
   """
   @callback operation_done(operation :: op, result :: any,
-                           context :: This.t, state :: any)
+                           context :: Ctx.t, state :: any)
     :: {state :: any, term}
 
   @doc """
@@ -587,7 +586,7 @@ defmodule Convex.Context do
   while *unpacking* the operation result).
   """
   @callback operation_failed(operation :: op, reason :: any, debug :: any,
-                             context :: This.t, state :: any)
+                             context :: Ctx.t, state :: any)
     :: {state :: any, reason :: any}
 
   @doc """
@@ -597,7 +596,7 @@ defmodule Convex.Context do
 
   Called by `fork/1` and `produce/2`.
   """
-  @callback pipeline_fork(context :: This.t, state :: any)
+  @callback pipeline_fork(context :: Ctx.t, state :: any)
     :: {base_state :: any, forked_state :: any}
 
   @doc """
@@ -606,7 +605,7 @@ defmodule Convex.Context do
   Called by `join/2` and `produce/2`.
   """
   @callback pipeline_join(forked_states :: [any],
-                          context :: This.t, state :: any)
+                          context :: Ctx.t, state :: any)
     :: state :: any
 
   @doc """
@@ -615,7 +614,7 @@ defmodule Convex.Context do
 
   Called by `delegate/2` and `delegate_prepare/1`.
   """
-  @callback pipeline_delegate(context :: This.t, state :: any)
+  @callback pipeline_delegate(context :: Ctx.t, state :: any)
     :: {base_state :: any, delegated_state :: any}
 
   @doc """
@@ -623,7 +622,7 @@ defmodule Convex.Context do
 
   Called by `delegate/2` and `delegate_done/2`.
   """
-  @callback pipeline_delegated(delegated_pid :: pid, context :: This.t,
+  @callback pipeline_delegated(delegated_pid :: pid, context :: Ctx.t,
                                state :: any)
     :: state :: any
 
@@ -633,7 +632,7 @@ defmodule Convex.Context do
   Called by `produce/2` and `join/2`.
   """
   @callback pipeline_forked(results :: [any], delegated :: [pid],
-                            context :: This.t, state :: any)
+                            context :: Ctx.t, state :: any)
     :: state :: any
 
   @doc """
@@ -641,7 +640,7 @@ defmodule Convex.Context do
 
   No more callbacks will be called after this.
   """
-  @callback pipeline_failed(reason :: any, context :: This.t, state :: any)
+  @callback pipeline_failed(reason :: any, context :: Ctx.t, state :: any)
     :: state :: any
 
   @doc """
@@ -649,19 +648,19 @@ defmodule Convex.Context do
 
   No more callbacks will be called after this.
   """
-  @callback pipeline_done(result :: any, context :: This.t, state :: any)
+  @callback pipeline_done(result :: any, context :: Ctx.t, state :: any)
     :: state :: any
 
   @doc """
   Called when the context authentication or session information changed.
   """
-  @callback context_changed(context :: This.t, state :: any)
+  @callback context_changed(context :: Ctx.t, state :: any)
     :: state :: any
 
   @doc """
   Called when the context policy changed.
   """
-  @callback policy_changed(context :: This.t, state :: any)
+  @callback policy_changed(context :: Ctx.t, state :: any)
     :: state :: any
 
   @doc """
@@ -677,7 +676,7 @@ defmodule Convex.Context do
   This function should not raise any exception, all the errors must
   be returned as a result.
   """
-  @callback pipeline_performed(options :: Keyword.t, context :: This.t,
+  @callback pipeline_performed(options :: Keyword.t, context :: Ctx.t,
                                state :: any)
     :: any
 
@@ -685,7 +684,7 @@ defmodule Convex.Context do
   Same as callback `c:pipeline_performed/3` but errors will be raised
   as exceptions and result will be returned directly.
   """
-  @callback pipeline_performed!(options :: Keyword.t, context :: This.t,
+  @callback pipeline_performed!(options :: Keyword.t, context :: Ctx.t,
                                 state :: any)
     :: any
 
@@ -694,8 +693,8 @@ defmodule Convex.Context do
   # API Functions
   #===========================================================================
 
-  @spec new(callback_module :: module) :: context :: This.t
-  @spec new(callback_module :: module, options :: Keyword.t) :: context :: This.t
+  @spec new(callback_module :: module) :: context :: Ctx.t
+  @spec new(callback_module :: module, options :: Keyword.t) :: context :: Ctx.t
   @doc """
   Creates a new context using the given callback module.
 
@@ -726,7 +725,7 @@ defmodule Convex.Context do
   end
 
 
-  @spec authenticated?(context :: This.t) :: boolean
+  @spec authenticated?(context :: Ctx.t) :: boolean
   @doc """
   Tells if the contrext is authenticated.
   """
@@ -734,7 +733,7 @@ defmodule Convex.Context do
   def authenticated?(%Ctx{} = ctx), do: ctx.auth != nil
 
 
-  @spec attached?(context :: This.t) :: boolean
+  @spec attached?(context :: Ctx.t) :: boolean
   @doc """
   Tells if the contrext is attached to a session.
   """
@@ -742,7 +741,7 @@ defmodule Convex.Context do
   def attached?(%Ctx{} = ctx), do: ctx.sess != nil
 
 
-  @spec operation(context :: This.t) :: operation :: This.op
+  @spec operation(context :: Ctx.t) :: operation :: This.op
   @doc """
   Returns the context current operation name.
   """
@@ -750,7 +749,7 @@ defmodule Convex.Context do
   def operation(ctx), do: _curr_op_name(ctx)
 
 
-  @spec arguments(context :: This.t) :: args :: map
+  @spec arguments(context :: Ctx.t) :: args :: map
   @doc """
   Returns the context current operation arguments.
   """
@@ -758,7 +757,7 @@ defmodule Convex.Context do
   def arguments(ctx), do: _curr_op_args(ctx)
 
 
-  @spec value(context :: This.t) :: any
+  @spec value(context :: Ctx.t) :: any
   @doc """
   Returns the result of the last context operation.
   """
@@ -766,9 +765,9 @@ defmodule Convex.Context do
   def value(ctx), do: ctx.result
 
 
-  @spec recast(context :: This.t, callback_module :: module) :: context :: This.t
-  @spec recast(context :: This.t, callback_module :: module, Keyword.t)
-    :: context :: This.t
+  @spec recast(context :: Ctx.t, callback_module :: module) :: context :: Ctx.t
+  @spec recast(context :: Ctx.t, callback_module :: module, Keyword.t)
+    :: context :: Ctx.t
   @doc """
   Create a new context with the specified callback module but keeping most
   of the current meta-data.
@@ -788,8 +787,8 @@ defmodule Convex.Context do
   end
 
 
-  @spec clone(context :: This.t) :: context :: This.t
-  @spec clone(context :: This.t, options :: Keyword.t) :: context :: This.t
+  @spec clone(context :: Ctx.t) :: context :: Ctx.t
+  @spec clone(context :: Ctx.t, options :: Keyword.t) :: context :: Ctx.t
   @doc """
   Clones given context.
 
@@ -806,7 +805,7 @@ defmodule Convex.Context do
   end
 
 
-  @spec compact(context :: This.t) :: context :: This.t
+  @spec compact(context :: Ctx.t) :: context :: Ctx.t
   @doc """
   Converts the given context to its smallest form still usable to
   recast for starting a new operation pipeline.
@@ -835,7 +834,7 @@ defmodule Convex.Context do
   end
 
 
-  @spec reset(context :: This.t) :: context :: This.t
+  @spec reset(context :: Ctx.t) :: context :: Ctx.t
   @doc """
   Resets a context keeping **ONLY** the callback module and director.
 
@@ -848,7 +847,7 @@ defmodule Convex.Context do
   end
 
 
-  @spec merge(base_context :: This.t, context :: This.t) :: context :: This.t
+  @spec merge(base_context :: Ctx.t, context :: Ctx.t) :: context :: Ctx.t
   @doc """
   Merges authentication, session, policy, NEW assignment and tags
   from a given context into base context. Contexts can be of different type
@@ -866,7 +865,7 @@ defmodule Convex.Context do
   end
 
 
-  @spec perform(context :: This.t, pipeline :: Pipeline.t, options :: Keyword.t)
+  @spec perform(context :: Ctx.t, pipeline :: Pipeline.t, options :: Keyword.t)
     :: any
   @doc """
   Performs a pipeline without exception.
@@ -891,7 +890,7 @@ defmodule Convex.Context do
   end
 
 
-  @spec perform!(context :: This.t, pipeline :: Pipeline.t, options :: Keyword.t)
+  @spec perform!(context :: Ctx.t, pipeline :: Pipeline.t, options :: Keyword.t)
     :: any
   @doc """
   Performs a pipeline raising an exception in case of failure and returning
@@ -917,19 +916,21 @@ defmodule Convex.Context do
   end
 
 
-  @spec resume(context :: This.t, operation :: This.op, args :: map)
-    :: context :: This.t
+  @spec resume(context :: Ctx.t, operation :: This.op, args :: map)
+    :: context :: Ctx.t
   @doc """
-  Resumes the execution of an operation. Useful if the operation was moved
-  around to another node and should be resumed there.
+  Resumes the execution of an operation.
+  Usefull for bootstraping the operation routing after the operation
+  got delegated. It is a shorthand to using the configured director
+  directly to route the operation. It resume the routing of the operation.
   """
 
   def resume(%Ctx{dir: dir} = ctx, op, args), do: dir.perform(ctx, op, args)
 
 
-  @spec bind(context :: This.t)
-    :: {:ok, context :: This.t, proxy :: Proxy.t}
-     | {:error, context :: This.t, reason :: any}
+  @spec bind(context :: Ctx.t)
+    :: {:ok, context :: Ctx.t, proxy :: Proxy.t}
+     | {:error, context :: Ctx.t, reason :: any}
   @doc """
   Creates a proxy to open a channel with the initiator of a pipeline.
 
@@ -948,8 +949,8 @@ defmodule Convex.Context do
   end
 
 
-  @spec done(context :: This.t) :: context :: This.t
-  @spec done(context :: This.t, result :: any) :: context :: This.t
+  @spec done(context :: Ctx.t) :: context :: Ctx.t
+  @spec done(context :: Ctx.t, result :: any) :: context :: Ctx.t
   @doc """
   Marks the current operation as done.
 
@@ -972,8 +973,8 @@ defmodule Convex.Context do
   end
 
 
-  @spec failed(context :: This.t, reason :: any) :: context :: This.t
-  @spec failed(context :: This.t, reason :: any, debug :: any) :: context :: This.t
+  @spec failed(context :: Ctx.t, reason :: any) :: context :: Ctx.t
+  @spec failed(context :: Ctx.t, reason :: any, debug :: any) :: context :: Ctx.t
   @doc """
   Marks the current operation as failed.
 
@@ -994,7 +995,7 @@ defmodule Convex.Context do
   end
 
 
-  @spec produce(context :: This.t, results :: [any]) :: context :: This.t
+  @spec produce(context :: Ctx.t, results :: [any]) :: context :: Ctx.t
   @doc """
   Forks the pipeline multiple times so it processes all the given results.
 
@@ -1033,8 +1034,8 @@ defmodule Convex.Context do
   end
 
 
-  @spec map(context :: This.t, values :: [any], (any -> any))
-    :: context :: This.t
+  @spec map(context :: Ctx.t, values :: [any], (any -> any))
+    :: context :: Ctx.t
   @doc """
   Forks the pipeline multiple times so it processes all the results of the
   mapping function for each given values.
@@ -1050,8 +1051,8 @@ defmodule Convex.Context do
   def map(ctx, values, fun), do: map(ctx, [], values, fun)
 
 
-  @spec fork(context :: This.t)
-    :: {base_context :: This.t, forked_context :: This.t}
+  @spec fork(context :: Ctx.t)
+    :: {base_context :: Ctx.t, forked_context :: Ctx.t}
   @doc """
   Forks the context so the operation can generate two results.
 
@@ -1074,8 +1075,8 @@ defmodule Convex.Context do
   end
 
 
-  @spec join(base_context :: This.t, forked_contexts :: [This.t])
-    :: context :: This.t
+  @spec join(base_context :: Ctx.t, forked_contexts :: [Ctx.t])
+    :: context :: Ctx.t
   @doc """
   Join all forked contexts out of a base context.
 
@@ -1100,8 +1101,8 @@ defmodule Convex.Context do
   end
 
 
-  @spec delegate(context :: This.t, pid :: pid)
-    :: {base_context :: This.t, delegated_context :: This.t}
+  @spec delegate(context :: Ctx.t, pid :: pid)
+    :: {base_context :: Ctx.t, delegated_context :: Ctx.t}
   @doc """
   Delegates the execution of the current operation to another process.
 
@@ -1131,8 +1132,8 @@ defmodule Convex.Context do
   end
 
 
-  @spec delegate_prepare(context :: This.t)
-    :: {base_context :: This.t, delegated_context :: This.t}
+  @spec delegate_prepare(context :: Ctx.t)
+    :: {base_context :: Ctx.t, delegated_context :: Ctx.t}
   @doc """
   Prepares the context to be delegated to another process.
 
@@ -1154,7 +1155,7 @@ defmodule Convex.Context do
   end
 
 
-  @spec delegate_done(base_context :: This.t, pid :: pid) :: context :: This.t
+  @spec delegate_done(base_context :: Ctx.t, pid :: pid) :: context :: Ctx.t
   @doc """
   Completes the delegation of the current operation to another process.
 
@@ -1183,10 +1184,10 @@ defmodule Convex.Context do
   end
 
 
-  @spec delegate_failed(base_context :: This.t, reason :: any)
-    :: context :: This.t
-  @spec delegate_failed(base_context :: This.t, reason :: any, debug :: any)
-    :: context :: This.t
+  @spec delegate_failed(base_context :: Ctx.t, reason :: any)
+    :: context :: Ctx.t
+  @spec delegate_failed(base_context :: Ctx.t, reason :: any, debug :: any)
+    :: context :: Ctx.t
   @doc """
   Cancel a prepared delegation.
 
@@ -1207,8 +1208,8 @@ defmodule Convex.Context do
   end
 
 
-  @spec authenticate(context :: This.t, auth :: Auth.t, policy :: Policy.t)
-    :: context :: This.t
+  @spec authenticate(context :: Ctx.t, auth :: Auth.t, policy :: Policy.t)
+    :: context :: Ctx.t
   @doc """
   Sets the context's authentication data and access policy.
 
@@ -1238,7 +1239,7 @@ defmodule Convex.Context do
   end
 
 
-  @spec attach(context :: This.t, sess :: Sess.t) :: context :: This.t
+  @spec attach(context :: Ctx.t, sess :: Sess.t) :: context :: Ctx.t
   @doc """
   Sets the context's attached session.
 
@@ -1269,9 +1270,9 @@ defmodule Convex.Context do
 
 
 
-  @spec restore(context :: This.t, auth :: Auth.t,
+  @spec restore(context :: Ctx.t, auth :: Auth.t,
                 sess :: Sess.t, policy :: Policy.t)
-    :: context :: This.t
+    :: context :: Ctx.t
   @doc """
   Sets the context's authentication. attached session and policy.
 
@@ -1300,7 +1301,7 @@ defmodule Convex.Context do
   end
 
 
-  @spec update_policy(context :: This.t, policy :: Policy.t) :: context :: This.t
+  @spec update_policy(context :: Ctx.t, policy :: Policy.t) :: context :: Ctx.t
   @doc """
   Updates the context policy.
 
@@ -1332,7 +1333,7 @@ defmodule Convex.Context do
   # Assigns and Tags Handling Functions
   #---------------------------------------------------------------------------
 
-  @spec fetch_assigned(context :: This.t, key :: any)
+  @spec fetch_assigned(context :: Ctx.t, key :: any)
     :: :error | {:ok, value :: any}
   @doc """
   Fetches an assigned value.
@@ -1343,8 +1344,8 @@ defmodule Convex.Context do
   end
 
 
-  @spec get_assigned(context :: This.t, key :: any) :: any
-  @spec get_assigned(context :: This.t, key :: any, default :: any) :: any
+  @spec get_assigned(context :: Ctx.t, key :: any) :: any
+  @spec get_assigned(context :: Ctx.t, key :: any, default :: any) :: any
   @doc """
   Gets an assigned value. If the key has not be assigned it returns `nil`
   or the given default value.
@@ -1355,7 +1356,7 @@ defmodule Convex.Context do
   end
 
 
-  @spec assign(context :: This.t, Keyword.t) :: context :: This.t
+  @spec assign(context :: Ctx.t, Keyword.t | map) :: context :: Ctx.t
   @doc """
   Assigns multiple key-value pairs to the context.
   """
@@ -1368,7 +1369,7 @@ defmodule Convex.Context do
   end
 
 
-  @spec assign(context :: This.t, key :: any, value :: any) :: context :: This.t
+  @spec assign(context :: Ctx.t, key :: any, value :: any) :: context :: Ctx.t
   @doc """
   Assigns a key-value pair to the context.
   """
@@ -1378,7 +1379,7 @@ defmodule Convex.Context do
   end
 
 
-  @spec assign_new(context :: This.t, Keyword.t) :: context :: This.t
+  @spec assign_new(context :: Ctx.t, Keyword.t) :: context :: Ctx.t
   @doc """
   Assigns multiple key-value pairs to the context if the key is not yet assigned.
   """
@@ -1391,7 +1392,7 @@ defmodule Convex.Context do
   end
 
 
-  @spec add_tags(context :: This.t, tags :: MapSet.t | list) :: context :: This.t
+  @spec add_tags(context :: Ctx.t, tags :: MapSet.t | list) :: context :: Ctx.t
   @doc """
   Adds some tags to the context.
   """
@@ -1401,7 +1402,7 @@ defmodule Convex.Context do
   end
 
 
-  @spec del_tags(context :: This.t, tags :: MapSet.t | list) :: context :: This.t
+  @spec del_tags(context :: Ctx.t, tags :: MapSet.t | list) :: context :: Ctx.t
   @doc """
   Removes some tags from the context.
   """
@@ -1415,7 +1416,7 @@ defmodule Convex.Context do
   # Logging Functions
   #---------------------------------------------------------------------------
 
-  @spec error(context :: This.t, message :: String.t) :: context :: This.t
+  @spec error(context :: Ctx.t, message :: String.t) :: context :: Ctx.t
   @doc """
   Logs an error message with extra context information.
   """
@@ -1426,7 +1427,7 @@ defmodule Convex.Context do
   end
 
 
-  @spec warn(context :: This.t, message :: String.t) :: context :: This.t
+  @spec warn(context :: Ctx.t, message :: String.t) :: context :: Ctx.t
   @doc """
   Logs a warning message with extra context information.
   """
@@ -1437,7 +1438,7 @@ defmodule Convex.Context do
   end
 
 
-  @spec info(context :: This.t, message :: String.t) :: context :: This.t
+  @spec info(context :: Ctx.t, message :: String.t) :: context :: Ctx.t
   @doc """
   Logs an information message with extra context information.
   """
@@ -1448,7 +1449,7 @@ defmodule Convex.Context do
   end
 
 
-  @spec debug(context :: This.t, message :: String.t) :: context :: This.t
+  @spec debug(context :: Ctx.t, message :: String.t) :: context :: Ctx.t
   @doc """
   Logs a debug message with extra context information.
   """
@@ -1459,11 +1460,11 @@ defmodule Convex.Context do
   end
 
 
-  @spec trace(context :: This.t, message :: String.t, error :: any, trace :: any)
-    :: context :: This.t
-  @spec trace(context :: This.t, message :: String.t, error :: any,
+  @spec trace(context :: Ctx.t, message :: String.t, error :: any, trace :: any)
+    :: context :: Ctx.t
+  @spec trace(context :: Ctx.t, message :: String.t, error :: any,
               trace :: any, extra :: Keyword.t)
-    :: context :: This.t
+    :: context :: Ctx.t
   @doc """
   Logs a a error message with the given message and information extracted
   from the given data.
