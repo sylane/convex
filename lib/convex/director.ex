@@ -6,7 +6,7 @@ defmodule Convex.Director do
   Directors are used by the context/pipeline to route operations to the
   module that knows how to perform them.
 
-  In addition, when *used*, this module instrument the defined functions
+  In addition, when `use`d, this module instruments the defined functions
   to simplify the writing of director modules.
   The instrumentation allows the definition of functions `delegate`, `perform`
   and `validate` with the following signatures:
@@ -63,17 +63,17 @@ defmodule Convex.Director do
 
   In these functions arguments, the operation can be specified as a string like
   `"foo.bar"` or `"spam.bacon.*"` and it will be converted to the proper
-  operation format (a list of tuples). Note that if the operation is stored
+  operation format (a list of atoms). Note that if the operation is stored
   in a variable it will be so in the real format, the string is converted at
   compilation time. Note too that the operation that can be returned from
   the `perfrom` funtions through the `:delegate` return tuple *MUST* be a
-  list of tuple (you can use the `~o` sigil to define it as a string,
+  list of atoms (you can use the `~o` sigil to define it as a string,
   See `Convex.Sigils`).
 
   The funtions `delegate` are used to define operations that should be
   handled by another director.
 
-  The functions `validate` are used to validate operations arguments and
+  The `validate` functions are used to validate operations arguments and
   eventually modify them.
 
   The functions `perform` are used to execute an operation and return a result

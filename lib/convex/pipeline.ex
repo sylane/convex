@@ -1,7 +1,7 @@
 defmodule Convex.Pipeline do
 
   @moduledoc """
-  Module to create and perform pipeline of operation with a simple syntax.
+  Module to create and perform pipeline of operations with a simple syntax.
 
 
   ## Perform Syntax
@@ -49,8 +49,8 @@ defmodule Convex.Pipeline do
 
   ### Operation Arguments
 
-  Arguments to the operations in a pipeline can be any variable defined outside
-  the pipeline scope if they are prefixed with `^` (Like `Ecto` queries):
+  An argument to the operations in a pipeline can be any variable defined outside
+  the pipeline scope if it's "pinned" with `^` (Like with `Ecto` queries):
 
     ```Elixir
     foo = 123
@@ -305,7 +305,7 @@ defmodule Convex.Pipeline do
   end
 
 
-  @spec perform(Ctx.t | Keyword.t, Keyword.t) :: result :: any
+  @spec perform!(Ctx.t | Keyword.t, Keyword.t) :: result :: any
   @doc """
   Macro to perform a pipeline of operation.
 

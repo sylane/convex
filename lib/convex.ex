@@ -7,6 +7,7 @@ defmodule Convex do
   [visitor pattern](https://en.wikipedia.org/wiki/Visitor_pattern)
   and [command pattern](https://en.wikipedia.org/wiki/Command_pattern).
 
+  TODO
 
   ## Concepts
 
