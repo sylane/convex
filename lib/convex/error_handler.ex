@@ -2,9 +2,9 @@ defmodule Convex.ErrorHandler do
 
   @moduledoc """
   Defines the behaviour the application must implement and specify with the
-  configuration key `config_handler` (See `Convex` documentation).
+  configuration key `error_handler` (See `Convex` documentation).
 
-  The error handler is used to deside what to do with errors raise while
+  The error handler is used to decide what to do with errors raise while
   performing operations.
   The handler will be called with non-system exceptions and can decide to:
     - Catch the exception (still logging a message) (`:error` response).
@@ -26,7 +26,7 @@ defmodule Convex.ErrorHandler do
   #===========================================================================
 
   @doc """
-  Desides what to do with a non-system exception raised while performing
+  Decides what to do with a non-system exception raised while performing
   an operation.
 
   Possible responses:

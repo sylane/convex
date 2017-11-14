@@ -5,8 +5,8 @@ defmodule Convex.Context.Process do
   execution state to a given process.
 
   Used to create contexts that will not block when performing an operation
-  pipeline and notify a process through messages about the execution state.
-  To handle these messages, `Convex.Handler.Process` can be used.
+  pipeline and that will notify a process through messages about the execution
+  state. To handle these messages, `Convex.Handler.Process` can be used.
 
   See `Convex.Protocol` for more information about the messages sent to the
   handler and how the results are gathered and the process monitored.
@@ -15,24 +15,24 @@ defmodule Convex.Context.Process do
   return `:ok`.
 
   **IMPORTANT**
-  Keep in mind that all the operations done "in-proc" (not delegated to another
-  process) will be executed in the caller process and block it until done or
-  delegated..
+  Keep in mind that any operations done "in-proc" (not delegated to another
+  process) will be executed in the caller process and block even though the
+  result will ultimately be dropped.
 
-  **e.g.**
+  #### Usage
 
-    ```Elixir
-    track_ref = make_ref()
-    pipe_ref = make_ref()
-    :ok = perform Convex.Context.Process.new(self(), track_ref, pipe_ref) do
-      some.operation ^args
-    end
-    ```
+  ```Elixir
+  track_ref = make_ref()
+  pipe_ref = make_ref()
+  :ok = perform Convex.Context.Process.new(self(), track_ref, pipe_ref) do
+    some.operation ^args
+  end
+  ```
 
   When binding a context with this callback module, a `Convex.Proxy` with
   `Convex.Proxy.Process` callback module will be returned.
 
-  For the process receiving the status of the execution to handle
+  In order for the process receiving the status of the execution to handle
   multiple pipelines at the same time, the context must be given a unique
   pipeline reference that will be passed with all the messages sent to the
   monitoring process.
@@ -49,11 +49,11 @@ defmodule Convex.Context.Process do
   are not associated with the root pipeline. If the handler wants the new
   context to keep it, it can pass the option `track` with value `true`:
 
-    ```Elixir
-    perform Convex.Context.Sync.recast(ctx, track: true) do
-      some.tracked.operation ^args
-    end
-    ```
+  ```Elixir
+  perform Convex.Context.Sync.recast(ctx, track: true) do
+    some.tracked.operation ^args
+  end
+  ```
   """
 
   @behaviour Convex.Context
@@ -101,12 +101,12 @@ defmodule Convex.Context.Process do
   The given tracking reference `reqref` is an opaque value that will be
   added to context's assigned value as `reqref`. It will be associated
   to all bound proxies and send alongside all the messages sent through
-  the proxy. It can be used ot associate any proxy messages to the event
+  the proxy. It can be used to associate any proxy messages to the event
   that triggered the pipeline execution.
 
-  The give pipeline reference `piperef` is a unique oapque value that will
-  be in all the message sent to the given process ID. It can be used to
-  handle multiple pipeline execution at the same time.
+  The given pipeline reference `piperef` is a unique opaque value that will
+  be in all the message sent to the given pid. It can be used to
+  distinguish between multiple pipeline executing at the same time.
 
   Options are the same as for `Convex.Context.new/2`.
   """
@@ -124,7 +124,7 @@ defmodule Convex.Context.Process do
     :: cloned_context :: Ctx.t
   @doc """
   Clones a context with this backend passing a new pipeline reference,
-  a new tracking refercence and new monitoring process pid.
+  a new tracking reference and new monitoring process pid.
 
   Options are the same as for `Convex.Context.clone/2`.
   """

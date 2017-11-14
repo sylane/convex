@@ -23,7 +23,8 @@ defmodule Convex.Guards do
   @spec protect(context :: Ctx.t, fun :: (() -> any))
     :: {:ok, any} | {:error, context :: Ctx.t} | no_return
   @doc """
-  Execute a function in the context of performing an operation in a safe way.
+  Execute a function in the context of performing an operation in a safe way,
+  by wrapping the execution with error handling try-rescue.
 
   If any exception is raised during the execution of the function, the current
   operation will be properly terminated.

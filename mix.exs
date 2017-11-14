@@ -2,7 +2,8 @@ defmodule Convex.Mixfile do
   use Mix.Project
 
   def project do
-    [ app: :convex,
+    [
+      app: :convex,
       version: "0.1.0",
       elixir: "~> 1.4",
       elixirc_paths: elixirc_paths(Mix.env),
@@ -41,8 +42,9 @@ defmodule Convex.Mixfile do
   end
 
   defp deps do
-    [ {:excoveralls, "~> 0.6", only: :test},
-      {:dialyxir, "~> 0.5", only: [:dev], runtime: false},
+    [
+      {:excoveralls, "~> 0.6", only: :test},
+      {:dialyxir, "~> 0.5", only: :dev, runtime: false},
       {:ex_doc, "~> 0.14", only: :dev, runtime: false},
     ]
   end

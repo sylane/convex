@@ -56,8 +56,8 @@ defmodule Convex.GenServer do
   @doc """
   Handles a delegated operation.
 
-  The state **MUST** be a struct defined in in the server module, because
-  the stuct name will be used to know which module to call back to handle
+  The state **must** be a struct defined in the server module, because
+  the struct module will be used as the module to callback into to handle
   the operation.
 
   This function will call back the function `handle_operation/4` with spec:

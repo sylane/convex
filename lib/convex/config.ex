@@ -4,7 +4,7 @@ defmodule Convex.Config do
   Handle the configuration for Convex library.
 
   An application can change the behaviour of `Convex` by specifying a
-  configuration handler implementing this baviour in its configuration.
+  configuration handler implementing this behaviour in its configuration.
 
   For now, the only configuration is the default policy that will be used
   when performing a pipeline with the `as` argument and without specifying
@@ -16,7 +16,7 @@ defmodule Convex.Config do
   #===========================================================================
 
   @doc """
-  Returns the default policy to use when performing a pipline with the `as`
+  Returns the default policy to use when performing a pipeline with the `as`
   argument but without any explicit `policy`.
   """
   @callback default_policy() :: term

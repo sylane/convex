@@ -1,17 +1,18 @@
 defmodule Convex do
 
   @moduledoc """
-  Convex is a library to simplify comunication between application services.
+  Convex is a library to simplify communication between application services.
 
   It provides a functional-flavored mix of
   [visitor pattern](https://en.wikipedia.org/wiki/Visitor_pattern)
   and [command pattern](https://en.wikipedia.org/wiki/Command_pattern).
 
-  TODO
+  ##### TODO High-level description of when to use this library. What types of systems \
+  does it simplify? Diagram?
 
   ## Concepts
 
-  The concept is to split responsabilities in three parts:
+  The concept is to split responsibilities in three parts:
 
    - The services providing the simplest operations possible.
    - The director that knows which service provide which operations.
@@ -20,10 +21,10 @@ defmodule Convex do
      results back.
 
 
-  ### Example
+  ## Example
 
   Take an hypothetical application composed of a user service, and an API service
-  where the user service itself uses and indexing service and a rendering service.
+  where the user service itself uses an indexing service and a rendering service.
 
   To provide an API that returns a list of formated user given a key, a possible
   implementation could be:
@@ -39,10 +40,10 @@ defmodule Convex do
 
   With `Convex`, the initiator is the one planning the execution:
 
-    1. The API create a context that suites the way it wants to get the result.
+    1. The API creates a context that defines how it will receive the result.
        It could be synchronous, asynchronous, sending messages to a websocket
        process...
-    2. The API creates a pipeline and perform it with the context:
+    2. The API creates a pipeline and begins executing it with the context:
       ```Elixir
       perform with: ctx do
         authenticate.user info: ^user_info
@@ -53,34 +54,35 @@ defmodule Convex do
     3. The context is routed to the authentication service to perform the
        `authenticate.user` operation that will authenticate the context.
     4. The context is routed to the indexing service perform the `index.lookup`
-       operation that will produce the user ids for the key.
+       operation that will produce multiple user ids for the key.
     5. The context is forked and routed to the rendering service
-       for each produced user id to perform the `user.render` operations
+       for each produced user id to perform the `user.render` operation
        (possibly in parallel).
-    6. The API gets all the results in function of the context it created.
+    6. The API received all the results in the manner defined by the context
+       it created.
 
   The advantages of this solution are:
 
     - The services only implement simple operations with less *hard-coded*
       inter-service calls.
-    - There is no synchronous calls involved, so none of the services are
+    - There are no synchronous calls involved, so none of the services are
       ever blocked waiting for another service.
-    - The initiator is the one deciding how the results are sent back.
-    - There is less inter-process messages because the execution use
-      the visitor pattern to jump from service to service without going
-      back to the initiator between each operations.
-    - The services doesn't have to know each-others, and doesn't have to
-      know how the initiator wants to get the results back.
+    - The initiator decides how the results are received.
+    - There are fewer inter-process messages because the execution uses
+      the visitor pattern to transition execution from service to service
+      without returning to the initiator between each operation step.
+    - The services can be loosely coupled, and don't require knowledge of
+      how the initiator wants to receive the results.
 
   Adding a new service to the application would only require updating the
   routing for operations (the director), and adding a new API with a
-  different behaviour (HTTP vs Websocket) wouldn't require any changes to
-  any services.
+  different behaviour (HTTP vs websocket) wouldn't require changes to any
+  services.
 
 
-  ### Testing
+  ## Testing
 
-  Another advantage of interfacing all the inter-service comunications
+  Another advantage of interfacing all the inter-service communications
   is that it is very simple to test a service.
 
   To isolate a service, you only need to create your own testing director
@@ -88,12 +90,12 @@ defmodule Convex do
   to a real service or mock them out.
 
 
-  ### Definitions
+  ## Definitions
 
   #### Operation
 
   An operation is a name and some arguments that some service could perform.
-  An operation name is a list of atoms, even though the director declaration
+  An operation name is a list of atoms, although the director declaration
   supports the dotted string representation to reduce noise.
 
   Using the `o` sigil, the dotted string representation can be used.
@@ -106,10 +108,10 @@ defmodule Convex do
   A director is a module that knows how to route an operation to a service
   by its name and arguments.
 
-  Each application needs to create there own director.
+  Each application needs to create its own director.
 
   Directors can be defined as a tree of modules, so each service could provide
-  there own director and the application only provide a root director that
+  their own director and the application need only provide a root director that
   delegates to each service director in function of the operation name.
 
   See `Convex.Director`.
@@ -117,37 +119,39 @@ defmodule Convex do
 
   #### Pipeline
 
-  A pipeline is a list of operations with there arguments and the way there
-  result should be stored.
-  The operations in a pipeline are executed sequencially.
-  Each operations can use the results of previouse one as arguments.
+  A pipeline is a list of operations (with arguments) and the data
+  dependencies between the operations.
+  The operations in a pipeline are executed sequentially.
+  Each operation can use the results of previous one as arguments.
   Operations can fork the pipeline so the remaining operations are
-  performed for every produced values.
+  performed for every produced value at that step.
 
   See `Convex.Pipeline`.
 
 
   #### Context
 
-  A context is what encapsulate all the data describing a pipeline of operations.
-  It is what is passed around between services in order to complete them.
+  A context is what encapsulates all the data describing a pipeline of operations.
+  It is what is passed around between services in order to complete the pipeline
+  of operations.
 
-  It is composed of a standard interface the service know about, and an internal
-  part defined by the initiator that defines how what to do during the execution.
-  For example there is 3 provided callback modules for the context that could
+  It is composed of a standard interface that any service can interact with, and
+  an internal implementation defined by the initiator that defines how the
+  operations should be processed during the execution.
+  For example there are 3 built-in callback modules for the context that can
   be used as-is or customized:
 
     - `Convex.Context.Async` provides a non-blocking fire-and-forget behavior,
-      the oeprations are executed and the results are ignored.
-    - `Convex.Context.Sync` provides a blocking call that returns only when
-      all the operations are done or any of them failed.
+      the operations are executed and the results are ignored.
+    - `Convex.Context.Sync` provides a blocking call that returns when all the
+      operations are done or returns immediately on any failure.
     - `Convex.Context.Process` provides a non-blocking call that will send
-      the execution status and result to a given process.
+      the execution status and result to a given process on completion.
       `Convex.Handler.Process` can be used to process these messages.
 
-  An HTTP API service may use the `Convex.Context.Sync` backend
-  and a websocket API service may use the `Convex.Context.Process` backend
-  to perform the same operations without any services requiring special
+  This design allows an HTTP API service using the `Convex.Context.Sync`
+  backend or a websocket API service using the `Convex.Context.Process` backend
+  to perform the same operations without the dependent services requiring special
   knowledge about the API requesting an operation to be performed.
 
   See `Convex.Context`.
@@ -155,20 +159,20 @@ defmodule Convex do
 
   #### Proxy
 
-  Sometime a service needs to setup a comunication channel with another service
-  in order to get notifications. For example a statefull websocket API may want
-  to notify a client asynchrnously of something.
+  A proxy is a communication channel with another service that can be
+  established in order to be notified of events emitted from this service. For
+  example a stateful websocket API may want to notify a connected client about
+  some asynchronous event affecting it from the user service.
 
   In order to do that, a service operation handler has the option to request
-  a proxy from the operation context. It can then keep this proxy and use
-  it at any moment to send messages to the initiator of the pipeline.
+  a proxy from the operation context. It can then hold onto this proxy and use
+  it at some later time to relay messages back to the initiator of the pipeline.
 
-  Like the context, this proxy has a standard interface the service knows
-  about, and an internal callback module that defines its behaviour. The
-  callback module is usually defined byt the context own callback module.
-  This way the service do not have to know how the peer service expects to
-  receive the notification messages, multiple APIs could have different ways
-  of notifying the client.
+  Like the context, this proxy has a standard interface that services can
+  interact with, and an internal callback module that defines its behaviour. The
+  callback module is usually defined by the context's own callback module.
+  This way the services does not need to know how the initiator expects to
+  receive the notification messages.
 
   See `Convex.Proxy`.
 
@@ -180,27 +184,27 @@ defmodule Convex do
 
   ```
   config :convex,
-    director: MyApp.MyDirector,
+    director: MyApp.MyDirector
   ```
 
-  # Configuration Keys
+  ### Configuration Keys
 
-  ## `director`
+  #### `director`
 
     The director module `Convex` should use to route operations.
-    Thre module **MUST** implement the `Convex.Director` beaviour.
+    The module **must** implement the `Convex.Director` behaviour.
 
-  ## `error_handler`
+  #### `error_handler`
 
     A module handling errors during operation execution.
-    It **MUST** implement the `Convex.ErrorHandler` behaviour.
+    The module **must** implement the `Convex.ErrorHandler` behaviour.
 
-  ## `config_handler`
+  #### `config_handler`
 
     A module handling `Convex` configuration.
-    It **MUST** implement the `Convex.Config` behaviour.
+    The module **must** implement the `Convex.Config` behaviour.
 
-  # e.g.
+  #### e.g.
 
   ```
   config :convex,

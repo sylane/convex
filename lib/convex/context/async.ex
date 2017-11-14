@@ -7,31 +7,31 @@ defmodule Convex.Context.Async do
   return `:ok` and the pipeline result will be ignored.
 
   **IMPORTANT**
-  Keep in mind that all the operations done "in-proc" (not delegated to another
+  Keep in mind that any operations done "in-proc" (not delegated to another
   process) will be executed in the caller process and block even though the
-  result will be droped.
+  result will ultimately be dropped.
 
-  **e.g.**
+  #### Usage
 
-    ```Elixir
-    :ok = perform Convex.Context.Async.new() do
-      some.operation ^args
-    end
-    ```
+  ```Elixir
+  :ok = perform Convex.Context.Async.new() do
+    some.operation ^args
+  end
+  ```
 
-  If you need to do something asynchrnously from inside an operation handler
+  If you need to do something asynchronously from inside an operation handler
   and don't want to lose the authentication/session/policy/assigned values and
-  tags you can recast the current context:
+  tags you can recast the current context to clone this data:
 
-    ```Elixir
-    perform Convex.Context.Async.recast(current_context) do
-      some.operation ^args
-    end
-    ```
+  ```Elixir
+  perform Convex.Context.Async.recast(current_context) do
+    some.operation ^args
+  end
+  ```
 
   If you want to enable the ability to bind the context in the pipeline
   operation handlers, you can specify the `binder` option. It is a function
-  taking the context as parameter and should return a `Convex.Proxy`.
+  taking the context as an argument and should return a `Convex.Proxy`.
 
   """
 
@@ -69,11 +69,11 @@ defmodule Convex.Context.Async do
   @doc """
   Creates a new asynchronous context.
 
-  In addition of `Convex.Context.new/2` options, the following options
+  In addition to `Convex.Context.new/2` options, the following options
   are supported:
 
-    - `binder`: a function taking a context and returning a `Convex.Proxy`.
-        enable the ability to bind the context in the operation handlers.
+    - `binder`: a function taking a context and returning a `Convex.Proxy`
+        enabling the ability to bind the context in the operation handlers.
   """
 
   def new(opts \\ []) do
@@ -84,16 +84,16 @@ defmodule Convex.Context.Async do
   @spec recast(base_context :: Ctx.t) :: context :: Ctx.t
   @spec recast(base_context :: Ctx.t, options :: Keyword.t) :: context :: Ctx.t
   @doc """
-  Creates an asynchronous context out of another context.
+  Creates an asynchronous context from an existing context.
 
-  Keeps the authentication, session, policy, assigned values and tags form
+  Keeps the authentication, session, policy, assigned values and tags from
   the given context.
 
-  In addition of `Convex.Context.recast/2` options, the following options
+  In addition to `Convex.Context.recast/2` options, the following options
   are supported:
 
-    - `binder`: a function taking a context and returning a `Convex.Proxy`.
-        enable the ability to bind the context in the operation handlers.
+    - `binder`: a function taking a context and returning a `Convex.Proxy`
+        enabling the ability to bind the context in the operation handlers.
   """
 
   def recast(ctx, opts \\ [])

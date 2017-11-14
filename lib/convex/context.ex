@@ -6,12 +6,12 @@ defmodule Convex.Context do
 
   The context encapsulates the pipeline operations and the state of the execution.
   It uses a callback module to alter its behavior in function of the initiator
-  requirments.
+  requirements.
 
   The context structure implements the `Access` protocol for its *public*
   fields `auth`, `sess` and `policy`.
   These fields are opaque for `Convex`, they are defined by the application.
-  The only requirment is for the application to ensure these values support
+  The only requirement is for the application to ensure these values support
   the `Convex.Auth`, `Convex.Sess` and `Convex.Policy` protocols respectively.
 
 
@@ -50,13 +50,13 @@ defmodule Convex.Context do
   the callback module helper functions like `Convex.Context.Sync.recast/1`
   or `Convex.Context.Sync.recast/2`:
 
-    ```Elixir
-    result = perform! with: Convex.Context.Sync.recast(ctx) do
-      some.opeation ^args
-    end
-    Convex.Context.done(ctx, result)
+  ```Elixir
+  result = perform! with: Convex.Context.Sync.recast(ctx) do
+    some.operation ^args
+  end
+  Convex.Context.done(ctx, result)
 
-    ```
+  ```
 
   ### Delegating
 
@@ -84,13 +84,13 @@ defmodule Convex.Context do
 
   Given the pipeline (See `Convex.Pipeline`):
 
-    ```Elixir
-    perform ctx do
-      id = find.something tag: "foo"
-      value = produce.values id: id
-      process.value value: value
-    end
-    ```
+  ```Elixir
+  perform ctx do
+    id = find.something tag: "foo"
+    value = produce.values id: id
+    process.value value: value
+  end
+  ```
 
   With the operations being:
 
@@ -123,7 +123,7 @@ defmodule Convex.Context do
 
   ## Context Meta-Data
 
-  A context contains data that follow it arround to the operation handlers.
+  A context contains data that follow it around to the operation handlers.
   It contains:
     - authentication data (`auth` field).
     - session data (`sess` field).
@@ -135,7 +135,7 @@ defmodule Convex.Context do
   ### Authentication and Session  Data
 
   The *public* field `auth` of a context contains the application-defined
-  authentication information. The only requirment for the data type is that
+  authentication information. The only requirement for the data type is that
   it supports `Convex.Auth` protocol.
 
   Another *public* field related to authentication is `policy`. The policy is
@@ -152,29 +152,29 @@ defmodule Convex.Context do
   The callback module is then responsible to send these changes to the
   initiator if this is the desired behavior (See `Convex.Context.Process`).
 
-  For the same reasons, if the policy changes in the context, the callbak
+  For the same reasons, if the policy changes in the context, the callback
   module function `c:policy_changed/2` will be called.
 
 
-  #### Pre-Authenticate
+  #### Pre-authenticate
 
   To authenticate a context and define its policy, the functions
   `authenticate/3` could be called before performing a pipeline:
 
-    ```Elixir
-    ctx = Convex.Context.authenticate(ctx, auth_data, policy_data)
-    perform ctx do
-      do.something ^args
-    end
-    ```
+  ```Elixir
+  ctx = Convex.Context.authenticate(ctx, auth_data, policy_data)
+  perform ctx do
+    do.something ^args
+  end
+  ```
 
   This is equivalent to:
 
-    ```Elixir
-    perform with: ctx, as: auth_data, policy: policy_data do
-      do.something ^args
-    end
-    ```
+  ```Elixir
+  perform with: ctx, as: auth_data, policy: policy_data do
+    do.something ^args
+  end
+  ```
 
 
   #### Authenticated by an Operation
@@ -182,21 +182,21 @@ defmodule Convex.Context do
   Another possibility is for an operation to authenticate the context.
   If an operation does:
 
-    ```Elixir
-    ctx
-    |> Convex.Context.authenticate(auth_data, policy_data)
-    |> Convex.Context.done(result)
-    ```
+  ```Elixir
+  ctx
+  |> Convex.Context.authenticate(auth_data, policy_data)
+  |> Convex.Context.done(result)
+  ```
 
   any further operation handler in the pipeline will have access to the
   `auth` and `policy` data and be considered authenticate:
 
-    ```Elixir
-    perform ctx do
-      user_id = users.authenticate username: ^username, password: ^password
-      some.authenticated.operation %{^args | user_id: user_id}
-    end
-    ```
+  ```Elixir
+  perform ctx do
+    user_id = users.authenticate username: ^username, password: ^password
+    some.authenticated.operation %{^args | user_id: user_id}
+  end
+  ```
 
 
   #### Attaching to Session
@@ -208,13 +208,13 @@ defmodule Convex.Context do
 
   Example of pipeline handling authentication and sessions:
 
-    ```Elixir
-    perform ctx do
-      users.authenticate username: ^username, password: ^password
-      sessions.attach session_id: ^session_id
-      do.something ^args
-    end
-    ```
+  ```Elixir
+  perform ctx do
+    users.authenticate username: ^username, password: ^password
+    sessions.attach session_id: ^session_id
+    do.something ^args
+  end
+  ```
 
   In this example the operation `users.authenticate` must call
   `authenticate/3` and the operation `sessions.attach` must call `attach/2`.
@@ -225,9 +225,9 @@ defmodule Convex.Context do
   if both authentication data and session data can be set at the same time
   it is called restoration and can be done using function `restore/4`:
 
-    ```Elixir
-    Convex.Context.restore(ctx, auth_data, session_data, policy_data)
-    ```
+  ```Elixir
+  Convex.Context.restore(ctx, auth_data, session_data, policy_data)
+  ```
 
   As for `authenticate/3` and `attach/2`, `restore/4` can be called in an
   operation handler.
@@ -235,39 +235,39 @@ defmodule Convex.Context do
 
   ### Assigned Values
 
-  A context can be assigned key-value pairs that will move arround to the
+  A context can be assigned key-value pairs that will move around to the
   services operation handlers. It can be used to store metadata like user agent,
-  client IP, debuging information...
+  client IP, debugging information...
 
   Assigning a value is done using the functions `assign/2` or `assign/3`:
 
-    ```Elixir
-    ctx
-    |> Convex.Context.assign(:foo, "something")
-    |> Convex.Context.assign([bar: 1, spam: true])
-    ```
+  ```Elixir
+  ctx
+  |> Convex.Context.assign(:foo, "something")
+  |> Convex.Context.assign([bar: 1, spam: true])
+  ```
 
   If a service wants to assign some values only if they are not already defined
   it can use function `assign_new/2`. Only new keys will be added the the
   context meta-data, already existing keys will stay untouched:
 
-    ```Elixir
-    Convex.Context.assign_new([bar: 1, spam: true])
-    ```
+  ```Elixir
+  Convex.Context.assign_new([bar: 1, spam: true])
+  ```
 
   These values can be accessed by any operation handler using
   `get_assigned/2`, `get_assigned/3` or `fetch_assigned/2` functions:
 
-    ```Elixir
-    foo = Convex.Context.get_assign(ctx, :foo, "default")
-    bar = Convex.Context.get_assign(ctx, :bar)
-    {:ok, spam} = Convex.Context.fetch_assign(ctx, :spam)
-    ```
+  ```Elixir
+  foo = Convex.Context.get_assign(ctx, :foo, "default")
+  bar = Convex.Context.get_assign(ctx, :bar)
+  {:ok, spam} = Convex.Context.fetch_assign(ctx, :spam)
+  ```
 
 
   ### Context Tags
 
-  Another meta-data the context contains is a set of untyped tags.
+  Another metadata the context contains is a set of untyped tags.
 
   These tags can be used for metrics, debugging...
 
@@ -276,18 +276,17 @@ defmodule Convex.Context do
 
   Adding tags with the function `add_tags/2`:
 
-    ```Elixir
-    ctx = Convex.Context.add_tags(ctx, ["foo", :bar, 123])
-    ctx.tags == MapSet.new(["foo", :bar, 123])
-
-    ```
+  ```Elixir
+  ctx = Convex.Context.add_tags(ctx, ["foo", :bar, 123])
+  ctx.tags == MapSet.new(["foo", :bar, 123])
+  ```
 
   Deleting tags with the function `del_tags/2`:
 
-    ```Elixir
-    ctx = Convex.Context.del_tags(ctx, ["foo", "spam"])
-    ctx.tags == MapSet.new([:bar, 123])
-    ```
+  ```Elixir
+  ctx = Convex.Context.del_tags(ctx, ["foo", "spam"])
+  ctx.tags == MapSet.new([:bar, 123])
+  ```
 
 
   ## Operation Handling
@@ -306,9 +305,9 @@ defmodule Convex.Context do
   If the operation execution succeed, the service need to call the function
   `done/1` or `done/2` with the result:
 
-    ```Elixir
-    Convex.Context.done(ctx, result)
-    ```
+  ```Elixir
+  Convex.Context.done(ctx, result)
+  ```
 
   When an operation is done, the context store the result in the context
   possibly unpacking it into multiple stored values and continue to the next
@@ -341,12 +340,10 @@ defmodule Convex.Context do
   continue the operation processing. It is the responsibility of the service
   to send the new context to the process.
 
-    ```Elixir
-    {ctx, delegated_ctx} = Convex.Context.delegate(ctx, pid)
-    send pid, {:do_something, delegated_ctx}
-    ctx
-
-    ```
+  ```Elixir
+  {ctx, delegated_ctx} = Convex.Context.delegate(ctx, pid)
+  send pid, {:do_something, delegated_ctx}
+  ```
 
   If a new process needs to be spawned, and the new context must be passed
   before even knowing the pid, the delegation **MUST** be done in two
@@ -356,10 +353,9 @@ defmodule Convex.Context do
   {ctx, delegated_ctx} = Convex.Context.delegate_prepare(ctx)
   pid = spawn(fn -> do_something(delegated_ctx) end)
   Convex.Context.delegate_done(ctx, pid)
-
   ```
 
-  If after calling `delegate_prepare/1` an error happend while spawning
+  If after calling `delegate_prepare/1` an error happened while spawning
   a process, the function `delegate_failed/2` or `delegate_failed/3` **MUST**
   be called:
 
@@ -434,7 +430,7 @@ defmodule Convex.Context do
     Convex.Context.map(ctx, [1, 2, 3], &(&1 * 2))
     ```
 
-  With these calls, the rest of the pipleline operations will be performes
+  With these calls, the rest of the pipeline operations will be performed
   for each values.
   """
 
@@ -522,7 +518,7 @@ defmodule Convex.Context do
   Should returns the callback module state that will be passed to every calls.
 
   In addition the callback module can return a map of key-values that will be
-  merged in the context assigned values. This is usefull if the associated
+  merged in the context assigned values. This is useful if the associated
   `Convex.Proxy` callback module needs some extra data.
 
   Called by `new/1` and `new/2`.
@@ -644,7 +640,7 @@ defmodule Convex.Context do
     :: state :: any
 
   @doc """
-  Called when all pipeline operations suceeded.
+  Called when all pipeline operations succeeded.
 
   No more callbacks will be called after this.
   """
@@ -667,9 +663,9 @@ defmodule Convex.Context do
   Called in the initiator process when the pipeline has been performed.
 
   This does **NOT** mean all the operations have been executed, they may
-  have neen delegated to other processes.
+  have been delegated to other processes.
 
-  This is where the callback module can deside to block and wait for
+  This is where the callback module can decide to block and wait for
   all the operations to be executed (See `Convex.Context.Sync`) or
   just return right away (See `Convex.Context.Async`).
 
@@ -708,7 +704,7 @@ defmodule Convex.Context do
     - `director`:
 
       The director module to use to route operations (See `Convex.Director`).
-      If not specified the director will be retrieved from conviguration
+      If not specified the director will be retrieved from configuration
       (See `Convex.Config`).
 
     - `tags`: `MapSet` or `list` of tags associated with the created context.
@@ -727,7 +723,7 @@ defmodule Convex.Context do
 
   @spec authenticated?(context :: Ctx.t) :: boolean
   @doc """
-  Tells if the contrext is authenticated.
+  Tells if the context is authenticated.
   """
 
   def authenticated?(%Ctx{} = ctx), do: ctx.auth != nil
@@ -735,7 +731,7 @@ defmodule Convex.Context do
 
   @spec attached?(context :: Ctx.t) :: boolean
   @doc """
-  Tells if the contrext is attached to a session.
+  Tells if the context is attached to a session.
   """
 
   def attached?(%Ctx{} = ctx), do: ctx.sess != nil
@@ -810,7 +806,7 @@ defmodule Convex.Context do
   Converts the given context to its smallest form still usable to
   recast for starting a new operation pipeline.
 
-  The only data keept is:
+  The only data kept is:
     - The callback module (but not its state).
     - The director.
     - The authentication data.
@@ -823,7 +819,7 @@ defmodule Convex.Context do
   This is called when returning a context as a pipeline result.
 
   A compacted context cannot be used to perform a pipeline without recasting,
-  but it can be merged into another context to extract autoentication, session
+  but it can be merged into another context to extract authentication, session
   and policy data.
   """
 
@@ -920,7 +916,7 @@ defmodule Convex.Context do
     :: context :: Ctx.t
   @doc """
   Resumes the execution of an operation.
-  Usefull for bootstraping the operation routing after the operation
+  Useful for bootstrapping the operation routing after the operation
   got delegated. It is a shorthand to using the configured director
   directly to route the operation. It resume the routing of the operation.
   """
@@ -999,7 +995,7 @@ defmodule Convex.Context do
   @doc """
   Forks the pipeline multiple times so it processes all the given results.
 
-  The following execution **MAY** be paralellized if any handler delegate
+  The following execution **MAY** be parallelized if any handler delegate
   to other processes.
 
   **IMPORTANT**: The final result order is **NOT** guaranteed.
@@ -1040,7 +1036,7 @@ defmodule Convex.Context do
   Forks the pipeline multiple times so it processes all the results of the
   mapping function for each given values.
 
-  The following execution **MAY** be paralellized if any handler delegate
+  The following execution **MAY** be parallelized if any handler delegate
   to other processes.
 
   **IMPORTANT**: The final result order is **NOT** guaranteed.
@@ -1214,7 +1210,7 @@ defmodule Convex.Context do
   Sets the context's authentication data and access policy.
 
   The given data must implements the protocols `Convex.Auth` and `Convex.Policy`
-  respictively.
+  respectively.
 
   If the authentication data was already set this function will raise an exception.
 

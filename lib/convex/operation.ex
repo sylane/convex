@@ -19,7 +19,7 @@ defmodule Convex.Operation do
   @doc """
   Converts a string to the internal representation (list of atoms).
 
-  It suports partial operation for pattern matching:
+  It supports partial operation for pattern matching:
 
   ```
   from_string("foo.bar") -> [:foo, :bar]
@@ -33,7 +33,7 @@ defmodule Convex.Operation do
       {:ok, ast} -> ast
       :error ->
         raise CompileError,
-              description: "invalide operation #{inspect op_ast}",
+              description: "invalid operation #{inspect op_ast}",
               file: __CALLER__.file, line: __CALLER__.line
     end
   end

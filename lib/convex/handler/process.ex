@@ -4,73 +4,75 @@ defmodule Convex.Handler.Process do
   Helper module to handle the messages sent by `Convex.Context.Process` and
   `Convex.Proxy.Process`.
 
-  This is used to mointor the state of multiple pipelines without blocking.
+  This is used to monitor the state of multiple pipelines without blocking.
 
-  **e.g.**
+  #### Basic usage
 
-    ```Elixir
-    handler = Convex.Handler.Process.new()
-    # Synchronous pipeline
-    ctx = Convex.Handler.Process.sync(handler)
-    result = perform with: ctx do
-      do.something.synchronous ^args
-    end
-    # Asynchronous pipeline
-    ctx = Convex.Handler.Process.async(handler)
-    perform with: ctx do
-      do.something.asynchronous ^args
-    end
-    # Monitored pipeline
-    track_ref = make_ref()
-    {handler, ctx} = Convex.Handler.Process.prepare(handler, track_refm, [])
-    perform with: ctx do
-      do.something.monitored ^args
-    end
-    ```
+  ```Elixir
+  handler = Convex.Handler.Process.new()
+  # Synchronous pipeline
+  ctx = Convex.Handler.Process.sync(handler)
+  result = perform with: ctx do
+    do.something.synchronous ^args
+  end
+  # Asynchronous pipeline
+  ctx = Convex.Handler.Process.async(handler)
+  perform with: ctx do
+    do.something.asynchronous ^args
+  end
+  # Monitored pipeline
+  track_ref = make_ref()
+  {handler, ctx} = Convex.Handler.Process.prepare(handler, track_refm, [])
+  perform with: ctx do
+    do.something.monitored ^args
+  end
+  ```
 
-  Then to handle the monitored pipeline all received message must be forwarded
+  Then to handle the monitored pipelines all received messages must be forwarded
   to the handler:
 
-    ```Elixir
-    def handle_info(msg, %This{handler: handler} = this) do
-      case mod.handle_info(msg, sub) do
-        {:ignored, handler} ->
-          # Not a message for the handler, do whatever you want with it
-          {:noreply, %This{this | handler: handler}}
-        {:ok, handler} ->
-          # Handled but no result yet
-          {:noreply, %This{this | handler: handler}}
-        {:send, traking_ref, messages, handler} ->
-          # Message sent through a proxy, with the associated tracking ref if available
-          {:noreply, %This{this | handler: handler}}
-        {:shutdown, reason, handler} ->
-          # A service requested the peer service to be closed
-          {:shutdown, reason, %This{this | handler: handler}}
-        {:done, params, result, handler} ->
-          # A pipeline finished successfully
-          {:noreply, %This{this | handler: handler}}
-        {:failed, params, reason, handler} ->
-          # A pipeline failed
-          {:noreply, %This{this | handler: handler}}
-      end
+  ```Elixir
+  def handle_info(msg, %This{handler: handler} = this) do
+    case Convex.Handler.Process.handle_info(msg, handler) do
+      {:ignored, handler} ->
+        # Not a message for the handler, do whatever you want with it
+        {:noreply, %This{this | handler: handler}}
+      {:ok, handler} ->
+        # Handled but no result yet
+        {:noreply, %This{this | handler: handler}}
+      {:send, traking_ref, messages, handler} ->
+        # Message sent through a proxy, with the associated tracking ref if available
+        {:noreply, %This{this | handler: handler}}
+      {:shutdown, reason, handler} ->
+        # A service requested the peer service to be closed
+        {:shutdown, reason, %This{this | handler: handler}}
+      {:done, params, result, handler} ->
+        # A pipeline finished successfully
+        {:noreply, %This{this | handler: handler}}
+      {:failed, params, reason, handler} ->
+        # A pipeline failed
+        {:noreply, %This{this | handler: handler}}
     end
-    ```
+  end
+  ```
 
-  It provide function to create context either synchronous, asynchronous or
-  montored that can be used to perform operation pipeline. Then the process
-  feeds the received message using function `handle_info/2` and it returns
-  is a pipeline was done or failed, if a proxy was used to post a message.
+  It provides functions to create contexts (either synchronous, asynchronous or
+  monitored) that can be used to perform the operation pipeline. Then the handler
+  process must pass any received messages through the `handle_info/2` function
+  to handle any pipeline status updates, or if a proxy was used to post a
+  message.
 
-  This module handles the operations authenticating, attaching a session
-  or updating the policy. It does it by having the context or proxy send a
-  message updating the base reference context so the next one given by
+  This module handles operations authenticating, attaching a session or
+  updating the policy. It does this by having the context or proxy send a
+  message updating the base (reference) context so the next one given by
   `sync/1`, `sync/2`, `async/1`, `async/2`, `prepare/3` or `prepare/4`
-  will contains the updated authentication, session and policy data.
+  will contain the updated authentication, session and policy data.
 
   To simulate a message being sent by a proxy, so it can be handled
-  by receiving `{:send, _, _, _}` return value of `handle_info/2`,
-  it is possible to create a posting function with the function
-  `make_post_fun/1`. The returned function can then be called to post messages:
+  via the `{:send, _, _, _}` return value of `handle_info/2`,
+  it is possible to create a posting function by calling `make_post_fun/1`.
+  The returned function can then be called to post messages that will
+  trigger `handle_info/2` in the same way:
 
     ```Elixir
       f = Convex.Handler.Process.make_post_fun(handler)
@@ -142,12 +144,12 @@ defmodule Convex.Handler.Process do
       `sync/1`, `sync/2`, `async/1`, `async/2`, `prepare/3` and `prepare/4`.
     - `tags`: The tags to be merged in the contexts provided by
       `sync/1`, `sync/2`, `async/1`, `async/2`, `prepare/3` and `prepare/4`.
-    - `timeout`: The time in miliseconds after which a pipeline performed
+    - `timeout`: The time in milliseconds after which a pipeline performed
       with a context returned by `prepare/3` or `prepare/4` will timeout.
-      The default timeout is `5000` miliseconds.
+      The default timeout is `5000` milliseconds.
     - `monitoring_delay`: The time after which the delegated process will
       start bing monitored wen using the contexts returned by
-      `prepare/3` or `prepare/4`. Default value: `150` miliseconds.
+      `prepare/3` or `prepare/4`. Default value: `150` milliseconds.
   """
 
   def new(opts \\ []) do
@@ -201,7 +203,7 @@ defmodule Convex.Handler.Process do
   @spec pid(handler :: This.t) :: pid
   @doc """
   Returns the pid the handler is monitoring for.
-  It is usualy `self()`.
+  It is usually `self()`.
   """
 
   def pid(this), do: this.pid
@@ -238,7 +240,7 @@ defmodule Convex.Handler.Process do
   @spec prepare(handler :: This.t, reqref :: any, params :: any, options :: Keyword.t)
     :: {handler :: This.t, context :: Ctx.t}
   @doc """
-  Prepares a context for monitorization.
+  Prepares a context for monitoring.
 
   The returned context can be used to perform a non-blocking operation pipeline
   and monitor its execution by forwarding all the received message through
@@ -302,13 +304,13 @@ defmodule Convex.Handler.Process do
   Handles messages sent by `Convex.Context.Process` and `Convex.Proxy.Process`.
 
   Used to monitor messages sent by proxies and operation pipelines performed
-  using the contextes returned by `prepare/3` and `prepare/4`.
+  using the contexts returned by `prepare/3` and `prepare/4`.
 
   Possible return values :
 
     - `{:ok, new_handler}`:
 
-      The message was for the handler but there is no pipeline result or failre
+      The message was for the handler but there is no pipeline result or failure
       yet available.
 
     - `{:ignored, new_handler}`:

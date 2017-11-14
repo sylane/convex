@@ -1,40 +1,41 @@
 defmodule Convex.Context.Sync do
 
   @moduledoc """
-  Callback module for `Convex.Context` providing synchronous behaviour.
+  Callback module for `Convex.Context` providing synchronous execution
+  behaviour.
 
   When used with an operation pipeline, performing the pipeline will block
   until all operations are done or any of them fail.
 
-  When using `perform` it will return a tuple `{:ok, result}`
-  or `{:error, reason}`, and when using `perform!` it will return the result
-  directly or raise an error.
+  When using `Convex.Pipeline.perform` it will return a tuple `{:ok, result}`
+  or `{:error, reason}`, and when using `Convex.Pipeline.perform!` it will
+  return the result directly or raise an error.
 
-  **e.g.**
+  #### Usage
 
-    ```Elixir
-    {:ok, result} = perform Convex.Context.Sync.new() do
-      some.operation ^args
-    end
+  ```Elixir
+  {:ok, result} = perform Convex.Context.Sync.new() do
+    some.operation ^args
+  end
 
-    result = perform! Convex.Context.Sync.new() do
-      some.operation ^args
-    end
-    ```
+  result = perform! Convex.Context.Sync.new() do
+    some.operation ^args
+  end
+  ```
 
-  If you need to do something synchrnously from inside an operation handler
+  If you need to do something synchronously from inside an operation handler
   and don't want to lose the authentication/session/policy/assigned values and
   tags you can recast the current context:
 
-    ```Elixir
-    perform Convex.Context.Sync.recast(current_context) do
-      some.operation ^args
-    end
-    ```
+  ```Elixir
+  perform Convex.Context.Sync.recast(current_context) do
+    some.operation ^args
+  end
+  ```
 
   If you want to enable the ability to bind the context in the pipeline
   operation handlers, you can specify the `binder` option. It is a function
-  taking the context as parameter and should return a `Convex.Proxy`.
+  taking the context as an argument and should return a `Convex.Proxy`.
 
   """
 
@@ -87,11 +88,11 @@ defmodule Convex.Context.Sync do
   @doc """
   Creates a new synchronous context.
 
-  In addition of `Convex.Context.new/2` options, the following options
+  In addition to `Convex.Context.new/2` options, the following options
   are supported:
 
-    - `binder`: a function taking a context and returning a `Convex.Proxy`.
-        enable the ability to bind the context in the operation handlers.
+    - `binder`: a function taking a context and returning a `Convex.Proxy`
+        enabling the ability to bind the context in the operation handlers.
   """
 
   def new(opts \\ []) do
@@ -107,11 +108,11 @@ defmodule Convex.Context.Sync do
   Keeps the authentication, session, policy, assigned values and tags form
   the given context.
 
-  In addition of `Convex.Context.recast/2` options, the following options
+  In addition to `Convex.Context.recast/2` options, the following options
   are supported:
 
-    - `binder`: a function taking a context and returning a `Convex.Proxy`.
-        enable the ability to bind the context in the operation handlers.
+    - `binder`: a function taking a context and returning a `Convex.Proxy`
+        enabling the ability to bind the context in the operation handlers.
   """
 
   def recast(ctx, opts \\ [])

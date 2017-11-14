@@ -47,4 +47,3 @@ defimpl Convex.Auth, for: Any do
   def describe(_), do: "unknown"
 
 end
-
